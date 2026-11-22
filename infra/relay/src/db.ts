@@ -5,9 +5,12 @@ import * as Planetscale from "@alchemy.run/planetscale";
 import * as Alchemy from "alchemy";
 import * as RemovalPolicy from "alchemy/RemovalPolicy";
 import type { EffectPgDatabase } from "drizzle-orm/effect-postgres";
+import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Redacted from "effect/Redacted";
 
 import { relayDatabaseMode } from "./dbConfig.ts";
 
@@ -42,6 +45,28 @@ export const PlanetscaleDatabase = Effect.gen(function* () {
     out: "./migrations/postgres",
     dialect: "postgres",
   });
+
+  // Self-hosted shortcut: RELAY_DATABASE_URL points at any reachable Postgres
+  // (Neon, Supabase, a VPS). Migrations run from the deploy machine (see
+  // alchemy.run.ts) — this code also executes inside the worker bundle, which
+  // has no filesystem, so it must stay free of Node-only side effects.
+  const databaseUrl = yield* Config.option(Config.Redacted("RELAY_DATABASE_URL"));
+  if (Option.isSome(databaseUrl) && Redacted.value(databaseUrl.value).trim().length > 0) {
+    const url = Redacted.value(databaseUrl.value);
+    const parsed = new URL(url);
+    const databaseName = decodeURIComponent(parsed.pathname.replace(/^\/+/, "")) || "postgres";
+    const runtimeRole = {
+      origin: {
+        scheme: "postgres" as const,
+        host: parsed.hostname,
+        port: parsed.port ? Number(parsed.port) : 5432,
+        database: databaseName,
+        user: decodeURIComponent(parsed.username),
+        password: Redacted.make(decodeURIComponent(parsed.password)),
+      },
+    };
+    return { branch: undefined, database: { name: databaseName }, runtimeRole };
+  }
 
   const mode = relayDatabaseMode(stage);
   const database =
@@ -80,6 +105,6 @@ export const RelayHyperdrive = Effect.gen(function* () {
     caching: {
       disabled: true,
     },
-    originConnectionLimit: 40,
+    originConnectionLimit: 20,
   });
 });

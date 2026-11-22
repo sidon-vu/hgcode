@@ -926,8 +926,8 @@ describe("CursorAdapterV2", () => {
           lastProviderTurn = providerTurn.providerTurn;
         const sent = sentMessages.at(-1)!;
         return {
-          orchestration: sent.includes("## T3 Code orchestration"),
-          devices: sent.includes("## T3 Code devices"),
+          orchestration: sent.includes("## HGCode orchestration"),
+          devices: sent.includes("## HGCode devices"),
           runtime: sent.includes("<runtime_info>"),
         };
       });

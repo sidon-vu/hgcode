@@ -4,8 +4,15 @@ import * as Output from "alchemy/Output";
 import * as Axiom from "@alchemy.run/axiom";
 import * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Drizzle from "@alchemy.run/drizzle";
+import { runMigrations, withPgExecutor } from "@alchemy.run/sql/Migrations";
+import { stripSslQueryParams } from "@alchemy.run/sql/PostgresDriver";
+import * as NodeServices from "@effect/platform-node/NodeServices";
+import * as Cause from "effect/Cause";
+import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Redacted from "effect/Redacted";
 import * as Planetscale from "@alchemy.run/planetscale";
 
 import { PublishClientConfig, tokenDigest } from "./src/clientConfig.ts";
@@ -30,12 +37,42 @@ export default Alchemy.Stack(
   },
   Effect.gen(function* () {
     const { stage } = yield* Alchemy.Stack;
+    // Self-host: apply migrations from the deploy host when RELAY_DATABASE_URL
+    // points at external Postgres (Neon & co). db.ts must not do this — it also
+    // runs inside the worker bundle, which has no filesystem.
+    const relayDatabaseUrl = yield* Config.option(Config.Redacted("RELAY_DATABASE_URL"));
+    if (
+      Option.isSome(relayDatabaseUrl) &&
+      Redacted.value(relayDatabaseUrl.value).trim().length > 0
+    ) {
+      yield* runMigrations({
+        input: { dir: "./migrations/postgres", table: "relay_migrations" },
+        stamped: {},
+        withExecutor: (apply) =>
+          withPgExecutor(
+            {
+              connectionString: stripSslQueryParams(Redacted.value(relayDatabaseUrl.value)),
+              ssl: { rejectUnauthorized: true },
+            },
+            apply,
+          ),
+      }).pipe(Effect.provide(NodeServices.layer), Effect.orDie);
+    }
     const db = yield* RelayDb.PlanetscaleDatabase;
     const hyperdrive = yield* RelayDb.RelayHyperdrive;
     const managedEndpointZone = yield* ManagedEndpointZone.pipe(Effect.orDie);
     const relayApiZone = yield* RelayApiZone.pipe(Effect.orDie);
     const observability = yield* RelayObservability;
-    const mobileSourceMapsUploadCredentials = yield* MobileSourceMapsUploadCredentials;
+    // Self-host: the deploy token may lack Account API Tokens Write, which the
+    // sourcemaps upload credential needs. Degrade to empty credentials — that
+    // output only feeds the optional MOBILE_SOURCEMAPS_R2 CI/EAS secret.
+    const mobileSourceMapsUploadCredentials = yield* MobileSourceMapsUploadCredentials.pipe(
+      Effect.catchCause((cause) =>
+        Effect.logWarning(
+          `Skipping mobile sourcemaps upload credentials: ${Cause.pretty(cause)}`,
+        ).pipe(Effect.as(Output.literal(Redacted.make("{}")))),
+      ),
+    );
     const api = yield* RelayWorker.Api;
     if (isPreviewStage(stage)) {
       const { managedEndpointZoneName } = yield* RelayDeploymentConfig;

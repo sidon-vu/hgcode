@@ -85,7 +85,7 @@ export interface ResolvedPeerLink {
 }
 
 /** What a link's session is called in the peer's Connections, before this environment's label. */
-export const LINK_CLIENT_NAME_PREFIX = "T3 Code · ";
+export const LINK_CLIENT_NAME_PREFIX = "HGCode · ";
 
 export const LINKED_ENVIRONMENTS_OFF =
   "Linked environments is off on this machine. Turn it on in Settings → Labs.";
@@ -204,7 +204,7 @@ const connectionCode = (cause: unknown) =>
     .map((error) => (Predicate.hasProperty(error, "code") ? error.code : undefined))
     .find(Predicate.isString);
 
-/** Why `origin` did not answer as T3 Code, short enough for a toast. Never echoes a body. */
+/** Why `origin` did not answer as HGCode, short enough for a toast. Never echoes a body. */
 const probeFailure = (
   origin: string,
   error: HttpClientError.HttpClientError | Schema.SchemaError | Cause.TimeoutError,
@@ -226,7 +226,7 @@ const probeFailure = (
   }
   return new PeerLinkError({
     reason: "not_a_t3_environment",
-    message: `${origin} answered, but not as a T3 Code environment this version understands.`,
+    message: `${origin} answered, but not as a HGCode environment this version understands.`,
   });
 };
 
@@ -271,7 +271,7 @@ const make = Effect.gen(function* () {
       Effect.provideService(HttpClient.HttpClient, peerHttpClient),
     );
 
-  /** The environment answering at `origin`, or why nothing there answers as T3 Code. */
+  /** The environment answering at `origin`, or why nothing there answers as HGCode. */
   const probe = (origin: string) => {
     const timeout = probeTimeout(origin);
     return clientFor(origin).pipe(
@@ -552,7 +552,7 @@ const make = Effect.gen(function* () {
     if (!linkLimitsHold(peer)) {
       return yield* new PeerLinkError({
         reason: "incompatible",
-        message: `${peer.label} runs a T3 Code version that cannot keep a linked agent's limits. Update it, then link again.`,
+        message: `${peer.label} runs a HGCode version that cannot keep a linked agent's limits. Update it, then link again.`,
       });
     }
     const issued = yield* signIn(primary, input, `${LINK_CLIENT_NAME_PREFIX}${self.label}`);
@@ -728,7 +728,7 @@ const make = Effect.gen(function* () {
       if (!linkLimitsHold(peer)) {
         return yield* new PeerLinkError({
           reason: "incompatible",
-          message: `${link.label} runs a T3 Code version that cannot keep a linked agent's limits. Update it, then link again.`,
+          message: `${link.label} runs a HGCode version that cannot keep a linked agent's limits. Update it, then link again.`,
         });
       }
       return {

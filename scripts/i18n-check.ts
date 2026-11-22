@@ -9,8 +9,9 @@ import * as NodePath from "node:path";
 
 // Desktop only depends on gt-i18n, so the gt CLI hides `generate` there; its script adds it back.
 const GENERATE: Record<string, readonly [string, ...string[]]> = {
-  "apps/web": ["node_modules/.bin/gt", "generate"],
-  "apps/mobile": ["node_modules/.bin/gt", "generate"],
+  // node_modules/.bin/gt shims are shell scripts Windows cannot spawn; run the JS entry directly.
+  "apps/web": [process.execPath, "node_modules/gt/bin/main.js", "generate"],
+  "apps/mobile": [process.execPath, "node_modules/gt/bin/main.js", "generate"],
   "apps/desktop": [process.execPath, "scripts/i18n-generate.mjs"],
 };
 const APPS = Object.keys(GENERATE);

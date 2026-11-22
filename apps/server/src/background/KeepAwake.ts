@@ -64,7 +64,7 @@ function inhibitorCommand(
         command: "systemd-inhibit",
         args: [
           "--what=sleep",
-          "--who=T3 Code",
+          "--who=HGCode",
           "--why=Agents are working",
           "--mode=block",
           // systemd-inhibit starts this only after logind grants the lock.
