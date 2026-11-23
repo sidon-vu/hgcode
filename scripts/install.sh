@@ -54,11 +54,11 @@ step() {
 }
 if "$interactive"; then
   printf '\n%s' "$bold" >&2
-  printf '  %s\n' '██████████ ████████ ' >&2
-  printf '  %s\n' '    ███       ▄██▀       HGCode' >&2
-  printf '  %s%s     %sCLI installer%s\n' '    ███       ████▄ ' "$reset" "$muted" "$reset$bold" >&2
-  printf '  %s\n' '    ███    ▄     ███' >&2
-  printf '  %s\n' '    ███    ███████▀ ' >&2
+  printf '  %s\n' '███    ███  ███████▄ ' >&2
+  printf '  %s\n' '███    ███ ███           HGCode' >&2
+  printf '  %s%s    %sCLI installer%s\n' '██████████ ███   ████' "$reset" "$muted" "$reset$bold" >&2
+  printf '  %s\n' '███    ███ ███    ███' >&2
+  printf '  %s\n' '███    ███  ▀██████▀ ' >&2
   printf '%s\n' "$reset" >&2
 fi
 step "Finding your release..."

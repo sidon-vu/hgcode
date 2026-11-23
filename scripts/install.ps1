@@ -120,11 +120,11 @@ function Fetch([string] $uri, [string] $destination, [switch] $progress) {
 if ($interactive) {
   # Block characters are constructed so this file also loads correctly in PowerShell 5.1.
   $mark = @(
-    "########## ######## ",
-    "    ###       _##^  ",
-    "    ###       ####_ ",
-    "    ###    _     ###",
-    "    ###    #######^ "
+    "###    ###  #######_ ",
+    "###    ### ###        ",
+    "########## ###   #####",
+    "###    ### ###    ###",
+    "###    ###  ^######^ "
   )
   [Console]::Error.WriteLine()
   for ($i = 0; $i -lt $mark.Length; $i++) {
