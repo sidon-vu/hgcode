@@ -1,7 +1,7 @@
 import { msg } from "gt-i18n";
 
 /**
- * Whole sentences for each T3 MCP tool row, keyed by the tool's labels from
+ * Whole sentences for each HGCode MCP tool row, keyed by the tool's labels from
  * `@t3tools/shared/t3McpToolPresentation`. Resolve with `{ status }`, and for
  * `changeRequest` also `{ changeRequest, number }`.
  */
@@ -245,15 +245,15 @@ const T3_TOOL_SENTENCES: ReadonlyMap<string, T3ToolSentence> = new Map<string, T
     "Create\nCreating\nCreated\nT3 threads",
     {
       detail: msg(
-        "{status, select, inProgress {Creating T3 threads} completed {Created T3 threads} failed {Failed to create T3 threads} declined {Declined to create T3 threads} stopped {Stopped creating T3 threads} other {Creating T3 threads}}",
+        "{status, select, inProgress {Creating HGCode threads} completed {Created HGCode threads} failed {Failed to create HGCode threads} declined {Declined to create HGCode threads} stopped {Stopped creating HGCode threads} other {Creating HGCode threads}}",
       ),
     },
   ],
   [
-    "Start\nStarting\nStarted\na T3 thread",
+    "Start\nStarting\nStarted\na HGCode thread",
     {
       detail: msg(
-        "{status, select, inProgress {Starting a T3 thread} completed {Started a T3 thread} failed {Failed to start a T3 thread} declined {Declined to start a T3 thread} stopped {Stopped starting a T3 thread} other {Starting a T3 thread}}",
+        "{status, select, inProgress {Starting an HGCode thread} completed {Started an HGCode thread} failed {Failed to start an HGCode thread} declined {Declined to start an HGCode thread} stopped {Stopped starting an HGCode thread} other {Starting an HGCode thread}}",
       ),
     },
   ],
@@ -261,31 +261,31 @@ const T3_TOOL_SENTENCES: ReadonlyMap<string, T3ToolSentence> = new Map<string, T
     "List\nListing\nListed\nT3 threads",
     {
       detail: msg(
-        "{status, select, inProgress {Listing T3 threads} completed {Listed T3 threads} failed {Failed to list T3 threads} declined {Declined to list T3 threads} stopped {Stopped listing T3 threads} other {Listing T3 threads}}",
+        "{status, select, inProgress {Listing HGCode threads} completed {Listed HGCode threads} failed {Failed to list HGCode threads} declined {Declined to list HGCode threads} stopped {Stopped listing HGCode threads} other {Listing HGCode threads}}",
       ),
     },
   ],
   [
-    "Read\nReading\nRead\na T3 thread",
+    "Read\nReading\nRead\na HGCode thread",
     {
       detail: msg(
-        "{status, select, inProgress {Reading a T3 thread} completed {Read a T3 thread} failed {Failed to read a T3 thread} declined {Declined to read a T3 thread} stopped {Stopped reading a T3 thread} other {Reading a T3 thread}}",
+        "{status, select, inProgress {Reading an HGCode thread} completed {Read an HGCode thread} failed {Failed to read an HGCode thread} declined {Declined to read an HGCode thread} stopped {Stopped reading an HGCode thread} other {Reading an HGCode thread}}",
       ),
     },
   ],
   [
-    "Send\nSending\nSent\nto a T3 thread",
+    "Send\nSending\nSent\nto an HGCode thread",
     {
       detail: msg(
-        "{status, select, inProgress {Sending to a T3 thread} completed {Sent to a T3 thread} failed {Failed to send to a T3 thread} declined {Declined to send to a T3 thread} stopped {Stopped sending to a T3 thread} other {Sending to a T3 thread}}",
+        "{status, select, inProgress {Sending to an HGCode thread} completed {Sent to an HGCode thread} failed {Failed to send to an HGCode thread} declined {Declined to send to an HGCode thread} stopped {Stopped sending to an HGCode thread} other {Sending to an HGCode thread}}",
       ),
     },
   ],
   [
-    "Wait\nWaiting\nWaited\nfor a T3 thread",
+    "Wait\nWaiting\nWaited\nfor an HGCode thread",
     {
       detail: msg(
-        "{status, select, inProgress {Waiting for a T3 thread} completed {Waited for a T3 thread} failed {Failed to wait for a T3 thread} declined {Declined to wait for a T3 thread} stopped {Stopped waiting for a T3 thread} other {Waiting for a T3 thread}}",
+        "{status, select, inProgress {Waiting for an HGCode thread} completed {Waited for an HGCode thread} failed {Failed to wait for an HGCode thread} declined {Declined to wait for an HGCode thread} stopped {Stopped waiting for an HGCode thread} other {Waiting for an HGCode thread}}",
       ),
     },
   ],
@@ -306,10 +306,10 @@ const T3_TOOL_SENTENCES: ReadonlyMap<string, T3ToolSentence> = new Map<string, T
     },
   ],
   [
-    "Interrupt\nInterrupting\nRequested an interrupt of\na T3 thread",
+    "Interrupt\nInterrupting\nRequested an interrupt of\na HGCode thread",
     {
       detail: msg(
-        "{status, select, inProgress {Interrupting a T3 thread} completed {Requested an interrupt of a T3 thread} failed {Failed to interrupt a T3 thread} declined {Declined to interrupt a T3 thread} stopped {Stopped interrupting a T3 thread} other {Interrupting a T3 thread}}",
+        "{status, select, inProgress {Interrupting an HGCode thread} completed {Requested an interrupt of an HGCode thread} failed {Failed to interrupt an HGCode thread} declined {Declined to interrupt an HGCode thread} stopped {Stopped interrupting an HGCode thread} other {Interrupting an HGCode thread}}",
       ),
     },
   ],
@@ -685,7 +685,7 @@ const T3_TOOL_SENTENCES: ReadonlyMap<string, T3ToolSentence> = new Map<string, T
     "Update\nUpdating\nUpdated\nT3 thread metadata",
     {
       detail: msg(
-        "{status, select, inProgress {Updating T3 thread metadata} completed {Updated T3 thread metadata} failed {Failed to update T3 thread metadata} declined {Declined to update T3 thread metadata} stopped {Stopped updating T3 thread metadata} other {Updating T3 thread metadata}}",
+        "{status, select, inProgress {Updating HGCode thread metadata} completed {Updated HGCode thread metadata} failed {Failed to update HGCode thread metadata} declined {Declined to update HGCode thread metadata} stopped {Stopped updating HGCode thread metadata} other {Updating HGCode thread metadata}}",
       ),
     },
   ],

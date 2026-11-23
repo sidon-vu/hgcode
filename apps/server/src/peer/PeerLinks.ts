@@ -226,7 +226,7 @@ const probeFailure = (
   }
   return new PeerLinkError({
     reason: "not_a_t3_environment",
-    message: `${origin} answered, but not as a HGCode environment this version understands.`,
+    message: `${origin} answered, but not as an HGCode environment this version understands.`,
   });
 };
 

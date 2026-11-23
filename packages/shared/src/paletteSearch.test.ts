@@ -207,17 +207,17 @@ describe("scoreThreadSearch", () => {
   it("ranks a title holding the words above the app's own branch prefix and project name", () => {
     const busy = { activityAt: NOW, opens: { openedAt: NOW, score: 6, picks: [] } };
     expect(
-      rankTitles("t3 connect", [
+      rankTitles("hg connect", [
         thread("Diagnose Connect provisioning failures", {
           ...busy,
           branch: "t3/diagnose-connect",
           projectTitle: "t3code",
         }),
-        thread("T3 Connect Tunnel Lifecycle Review", { projectTitle: "t3code" }),
+        thread("HG Connect Tunnel Lifecycle Review", { projectTitle: "t3code" }),
       ])[0],
-    ).toBe("T3 Connect Tunnel Lifecycle Review");
+    ).toBe("HG Connect Tunnel Lifecycle Review");
     expect(
-      rankTitles("t3code", [
+      rankTitles("hgcode", [
         thread("Fix sidebar lag", { ...busy, projectTitle: "t3code", branch: "t3code/sidebar" }),
         thread("HGCode vs Gemini Token Volume", { projectTitle: "slophouse" }),
       ])[0],
@@ -371,7 +371,7 @@ describe("scoreThreadSearch beyond Latin text and titles", () => {
     // Short words before a mere prefix are a coincidence.
     expect(rankTitles("inth", [thread("Show skill names in thread overview")])).toEqual([]);
     expect(rankTitles("tos", [thread("Move Client State to Server")])).toEqual([]);
-    expect(rankTitles("t3co", [thread("HGCode vs Gemini")])).toEqual(["HGCode vs Gemini"]);
+    expect(rankTitles("hgco", [thread("HGCode vs Gemini")])).toEqual(["HGCode vs Gemini"]);
     expect(rankTitles('"sidebar lag"', [thread("Fix sidebar lag")])).toEqual(["Fix sidebar lag"]);
     // A pasted query with a separate accent mark matches the composed title.
     expect(rankTitles("cafe\u0301", [thread("Café menu")])).toEqual(["Café menu"]);

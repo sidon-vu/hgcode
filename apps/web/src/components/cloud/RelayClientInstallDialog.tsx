@@ -73,9 +73,9 @@ export function RelayClientInstallDialog() {
           </DialogTitle>
           <DialogDescription>
             {isInstalling
-              ? gt("HGCode is preparing this environment for secure access through T3 Connect.")
+              ? gt("HGCode is preparing this environment for secure access through HG Connect.")
               : gt(
-                  "HGCode needs the relay client to make this environment available through T3 Connect.",
+                  "HGCode needs the relay client to make this environment available through HG Connect.",
                 )}
           </DialogDescription>
         </DialogHeader>

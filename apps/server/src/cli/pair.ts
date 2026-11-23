@@ -77,7 +77,7 @@ export class NoRunningServerError extends Schema.TaggedError<NoRunningServerErro
       ...(this.inLinkedWorktree
         ? ["In a linked worktree, pass --base-dir to pair with a server outside it."]
         : []),
-      `Start one with \`${this.serveCommand}\`, or connect this machine with T3 Connect: \`${this.connectCommand}\`.`,
+      `Start one with \`${this.serveCommand}\`, or connect this machine with HG Connect: \`${this.connectCommand}\`.`,
     ].join("\n");
   }
 }
@@ -166,7 +166,7 @@ export class ServePortOccupiedError extends Schema.TaggedError<ServePortOccupied
   { servePort: Schema.Number },
 ) {
   override get message(): string {
-    return `HTTPS port ${String(this.servePort)} on the tailnet already serves something that is not a HGCode server. Pass --tailscale-serve-port to publish this one on another port.`;
+    return `HTTPS port ${String(this.servePort)} on the tailnet already serves something that is not an HGCode server. Pass --tailscale-serve-port to publish this one on another port.`;
   }
 }
 
@@ -588,7 +588,7 @@ export const pairCommand = Command.make("pair", {
           );
         } else if (target.state.privateNetworkOnly) {
           notes.push(
-            "This URL works only from this machine's local network. From elsewhere, re-run with --tailscale or use T3 Connect.",
+            "This URL works only from this machine's local network. From elsewhere, re-run with --tailscale or use HG Connect.",
           );
         }
         if (target.variant === "dev" && target.state.devUrl === undefined) {

@@ -362,7 +362,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
         baseDir,
       ]);
       return yield* new CliError.UserError({
-        cause: `A HGCode server is already running for ${baseDir} (pid ${runtime.value.pid}, ${runtime.value.origin}). To open it, run \`${pairCommand}\` and open the pairing URL it prints. To start another server, stop this one first or use a different --base-dir.`,
+        cause: `An HGCode server is already running for ${baseDir} (pid ${runtime.value.pid}, ${runtime.value.origin}). To open it, run \`${pairCommand}\` and open the pairing URL it prints. To start another server, stop this one first or use a different --base-dir.`,
       });
     }
   }
@@ -432,7 +432,7 @@ export const resolveServerConfig = Effect.fn("config.resolveServerConfig")(funct
     Option.fromUndefinedOr(bootstrap?.host),
   );
   // Private networks only, so clients learn a LAN address and prefer it over
-  // T3 Connect. `t3 service install` writes T3CODE_LAN=false for a new
+  // HG Connect. `t3 service install` writes T3CODE_LAN=false for a new
   // service; one installed before T3CODE_LAN existed keeps listening.
   const lan = resolveOptionPrecedence(normalizedFlags.lan, Option.fromUndefinedOr(env.lan));
   const privateNetworkOnly =

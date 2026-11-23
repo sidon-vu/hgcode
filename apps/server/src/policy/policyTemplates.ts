@@ -76,7 +76,7 @@ const policies = (): ReadonlyArray<Policy> => [
   {
     id: "Clients",
     title: "Allowed clients",
-    help: "What may connect to HGCode on this machine.\n\nWithout Remote, HGCode only listens on this machine, does not create pairing links, signs out devices that paired earlier, and turns T3 Connect off. Check at least one client.\n\nDisabled or Not Configured: no restriction.",
+    help: "What may connect to HGCode on this machine.\n\nWithout Remote, HGCode only listens on this machine, does not create pairing links, signs out devices that paired earlier, and turns HG Connect off. Check at least one client.\n\nDisabled or Not Configured: no restriction.",
     elements: [
       {
         kind: "checkbox",
@@ -103,8 +103,8 @@ const policies = (): ReadonlyArray<Policy> => [
   },
   {
     id: "Connect",
-    title: "Allow T3 Connect",
-    help: "Disabled turns T3 Connect off and unlinks this machine. Other remote access still follows Allowed clients.\n\nEnabled or Not Configured leaves T3 Connect available.",
+    title: "Allow HG Connect",
+    help: "Disabled turns HG Connect off and unlinks this machine. Other remote access still follows Allowed clients.\n\nEnabled or Not Configured leaves HG Connect available.",
     toggle: "Connect",
   },
   {
@@ -170,13 +170,13 @@ const policies = (): ReadonlyArray<Policy> => [
   {
     id: "Settings",
     title: "Managed settings (JSON)",
-    help: 'Defaults and locks for server settings, as the "settings" object of a HGCode policy. Each key is a setting path; each value is {"value": ..., "locked": true|false}.\n\nExample: {"enableAgentBrowserAccess": {"value": false, "locked": true}}\n\nRun "t3 policy check" on a policy file with the same object to validate it first.',
+    help: 'Defaults and locks for server settings, as the "settings" object of an HGCode policy. Each key is a setting path; each value is {"value": ..., "locked": true|false}.\n\nExample: {"enableAgentBrowserAccess": {"value": false, "locked": true}}\n\nRun "t3 policy check" on a policy file with the same object to validate it first.',
     elements: [{ kind: "text", name: "Settings", label: "Settings JSON", json: true }],
   },
   {
     id: "ProviderInstances",
     title: "Provider settings (JSON)",
-    help: 'Fields set on every instance of a provider, as the "limits.providers.instances" object of a HGCode policy: environment variables, binaryPath, launchArgs.\n\nExample: {"claudeAgent": {"locked": true, "environment": [{"name": "CLAUDE_CODE_USE_BEDROCK", "value": "1"}]}}\n\nEvery user on the machine can read this value, so do not put credentials in it.',
+    help: 'Fields set on every instance of a provider, as the "limits.providers.instances" object of an HGCode policy: environment variables, binaryPath, launchArgs.\n\nExample: {"claudeAgent": {"locked": true, "environment": [{"name": "CLAUDE_CODE_USE_BEDROCK", "value": "1"}]}}\n\nEvery user on the machine can read this value, so do not put credentials in it.',
     elements: [
       { kind: "text", name: "ProviderInstances", label: "Provider settings JSON", json: true },
     ],

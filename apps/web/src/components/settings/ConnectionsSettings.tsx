@@ -156,7 +156,7 @@ import {
   RevokeConnectDeviceDialog,
 } from "./RevokeConnectDeviceDialog";
 
-// Sessions T3 Connect minted for a device signed in to the linked account.
+// Sessions HG Connect minted for a device signed in to the linked account.
 const CLOUD_CONNECT_SESSION_SUBJECT = "cloud-connect";
 const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 const EMPTY_ADVERTISED_ENDPOINTS: ReadonlyArray<AdvertisedEndpoint> = [];
@@ -768,7 +768,7 @@ function ConnectionsSettingsContent({
     }
   };
 
-  // Removing a T3 Connect route preserves account registration; use a separate dialog pointing to
+  // Removing an HG Connect route preserves account registration; use a separate dialog pointing to
   // deregistration.
   const [pendingT3ConnectRemoval, setPendingT3ConnectRemoval] =
     useState<EnvironmentPresentation | null>(null);
@@ -787,7 +787,7 @@ function ConnectionsSettingsContent({
     if (confirmed === true) await removeSavedBackend(environment);
   };
 
-  // T3 Connect devices waiting for approval have their own list.
+  // HG Connect devices waiting for approval have their own list.
   const visibleDesktopPairingLinks = desktopPairingLinks.filter(
     (pairingLink) => pairingLink.connectDeviceRequest === undefined,
   );
@@ -802,7 +802,7 @@ function ConnectionsSettingsContent({
   const updateAccessSettings = useUpdateEnvironmentSettings(accessEnvironmentId);
   const [pendingConnectRevoke, setPendingConnectRevoke] =
     useState<ConnectDeviceRevokeRequest | null>(null);
-  // With approval off a revoked T3 Connect device signs straight back in, so offer to turn it
+  // With approval off a revoked HG Connect device signs straight back in, so offer to turn it
   // on. Older servers have no such setting, and revoking there goes ahead as before.
   const connectApprovalOff =
     accessEnvironment?.serverConfig?.settings.requireConnectDeviceApproval === false;
@@ -1534,7 +1534,7 @@ function ConnectionsSettingsContent({
                         "Let your other devices connect to HGCode over the network. Pair devices to give them access. HGCode will restart.",
                       )
                     : gt(
-                        "Devices connected over your local network will disconnect. Existing tunnels, such as T3 Connect or Tailscale HTTPS, keep working. HGCode will restart.",
+                        "Devices connected over your local network will disconnect. Existing tunnels, such as HG Connect or Tailscale HTTPS, keep working. HGCode will restart.",
                       )}
                 </AlertDialogDescription>
               </AlertDialogHeader>

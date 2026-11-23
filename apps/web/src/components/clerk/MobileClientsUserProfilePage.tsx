@@ -107,7 +107,7 @@ function EmptyMobileClients() {
         </EmptyTitle>
         <EmptyDescription>
           <T>
-            Install HGCode on your phone and sign in to T3 Connect to get push notifications and
+            Install HGCode on your phone and sign in to HG Connect to get push notifications and
             Live Activities.
           </T>
         </EmptyDescription>

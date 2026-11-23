@@ -214,11 +214,11 @@ const startLocalBackend = Effect.gen(function* () {
     !(yield* DesktopHomeOwner.awaitHomeOwnershipRelease())
   ) {
     const owner = yield* DesktopHomeOwner.readLiveHomeOwner();
-    yield* logBootstrapWarning("bootstrap found another server owning the T3 home", {
+    yield* logBootstrapWarning("bootstrap found another server owning the HGCode home", {
       owner: Option.getOrNull(owner),
     });
     yield* (yield* ElectronDialog.ElectronDialog).showErrorBox(
-      m(msg("This T3 home is unavailable")),
+      m(msg("This HGCode home is unavailable")),
       DesktopHomeOwner.homeOwnedMessage(owner),
     );
     yield* (yield* ElectronApp.ElectronApp).quit;

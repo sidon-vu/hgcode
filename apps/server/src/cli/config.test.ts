@@ -208,7 +208,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
           ),
           Effect.flip,
         );
-        expect(String(error)).toContain("A T3 Code server is already running");
+        expect(String(error)).toContain("An HGCode server is already running");
         expect(String(error)).toContain(`pid ${child.pid}`);
         expect(yield* fs.exists(cwd)).toBe(false);
       }),
@@ -222,7 +222,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
       assert(child.pid !== undefined);
       for (const source of ["flag", "T3CODE_HOME", "default"] as const) {
         const home = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-preflight-pair-" });
-        const baseDir = source === "default" ? path.join(home, ".t3") : home;
+        const baseDir = source === "default" ? path.join(home, ".hgcode") : home;
         const stateDir = path.join(baseDir, "userdata");
         yield* fs.makeDirectory(stateDir, { recursive: true });
         yield* fs.writeFileString(

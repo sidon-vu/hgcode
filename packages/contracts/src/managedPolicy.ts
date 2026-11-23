@@ -75,7 +75,7 @@ export const ManagedPolicyLimits = Schema.Struct({
   maxRuntimeMode: Schema.optionalKey(RuntimeMode),
   /** Clients the server accepts. Without `remote`, nothing off this machine can pair. */
   clients: Schema.optionalKey(Schema.NonEmptyArray(ManagedPolicyClient)),
-  /** `false` turns T3 Connect off and unlinks this machine. */
+  /** `false` turns HG Connect off and unlinks this machine. */
   connect: Schema.optionalKey(Schema.Boolean),
   webhookTasks: Schema.optionalKey(Schema.Boolean),
   /** Can only turn product analytics off, never force it on. */
@@ -209,7 +209,7 @@ export function clampManagedRuntimeMode(
 
 const CAPABILITY_LABELS = {
   remoteClients: "connecting from other devices",
-  connect: "T3 Connect",
+  connect: "HG Connect",
   webhookTasks: "webhook tasks",
   browserCookieImport: "importing browser cookies",
   previewTunnel: "opening this machine's local servers on other devices",

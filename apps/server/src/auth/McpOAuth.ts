@@ -212,7 +212,7 @@ export class McpOAuth extends Context.Service<
       readonly urls: McpOAuthUrls;
       readonly request: AuthMcpAuthorizationRequest;
     }) => Effect.Effect<AuthorizationRequest, McpOAuthPageError | McpOAuthRedirectError>;
-    /** A browser cookie session, or a T3 Connect session from the hosted app, that may approve. */
+    /** A browser cookie session, or an HG Connect session from the hosted app, that may approve. */
     readonly approvingSession: (
       request: HttpServerRequest.HttpServerRequest,
       authorization: AuthorizationRequest,
@@ -351,7 +351,7 @@ const make = Effect.gen(function* () {
         return yield* new AuthMcpRegistrationError({
           error: "invalid_client_metadata",
           error_description:
-            'Linked environments is off on that machine. Turn it on in its Settings → Labs, or without a desktop, set "linkedEnvironmentsEnabled": true in userdata/settings.json in its T3 home (~/.t3 by default).',
+            'Linked environments is off on that machine. Turn it on in its Settings → Labs, or without a desktop, set "linkedEnvironmentsEnabled": true in userdata/settings.json in its HGCode home (~/.hgcode by default).',
         });
       }
       const clientId = yield* signClientId(name, redirectUris, peerLink);

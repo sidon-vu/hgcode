@@ -153,11 +153,11 @@ export interface McpInvocationScope {
   /** False while the Linked environments beta is off here; `/mcp` reads it per request. */
   readonly linkedEnvironments?: boolean;
   /**
-   * The origin this `/mcp` request reached, e.g. a T3 Connect tunnel. Hosted clients cannot
+   * The origin this `/mcp` request reached, e.g. an HG Connect tunnel. Hosted clients cannot
    * see the URL they were configured with, so links they must fetch carry it. Unset in-process.
    */
   readonly origin?: string | undefined;
-  /** False when the calling thread's project is on no forge T3 reads; `/mcp` reads it per request. */
+  /** False when the calling thread's project is on no forge HGCode reads; `/mcp` reads it per request. */
   readonly forge?: boolean;
 }
 
@@ -185,7 +185,7 @@ export class McpInvocationContext extends Context.Service<
 
 /**
  * `McpSchema.EnabledWhen` for tools a delegated child must not see or call.
- * EnabledWhen only receives the MCP client profile, so read the T3 caller from the request fiber.
+ * EnabledWhen only receives the MCP client profile, so read the HGCode caller from the request fiber.
  */
 export const hiddenFromSubagents = (): boolean => {
   const fiber = Fiber.getCurrent();
@@ -276,7 +276,7 @@ export const requireThreadMcpCapability = <const C extends "preview" | "device">
 const threadCallerRequired = (operation: string) =>
   new OrchestratorMcpFailure({
     code: "thread_credential_required",
-    message: `${operation} acts as the calling T3 thread, so it needs an agent running inside HGCode. This MCP client signed in from outside a thread.`,
+    message: `${operation} acts as the calling HGCode thread, so it needs an agent running inside HGCode. This MCP client signed in from outside a thread.`,
   });
 
 export type McpThreadInvocationScope = McpInvocationScope & { readonly thread: McpThreadCaller };
