@@ -8,6 +8,11 @@ event and forwards events to PostHog. Events include the provider, model, reason
 permission mode, turn and request results, duration, release channel, and token counts when
 available. Child-agent token counts are reported separately from the main agent's. Model names
 are sent only when they appear in a provider's public model list.
+=======
+
+available. Child-agent token counts are reported separately from the main agent's. Models from a
+provider's catalog are reported by name, even when a custom endpoint serves them. Any other
+model, such as a local or fine-tuned one, is reported only as a custom model of that provider.
 
 Product events do not include prompts, responses, file contents, authentication tokens, conversation IDs,
 raw provider events, or child-agent output.
