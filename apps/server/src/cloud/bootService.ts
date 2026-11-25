@@ -681,7 +681,7 @@ export function formatBootServiceProblem(
     case "service-disabled":
       return `The service is not enabled to start automatically. Run \`${commands.install}\` to repair it.`;
     case "service-stopped":
-      return `The service is not running. Check the service log (on Linux, also \`systemctl --user status t3code.service\`), then run \`${commands.install}\`.`;
+      return `The service is not running. Check the service log (on Linux, also \`systemctl --user status ${BOOT_SERVICE_UNIT_FILE}\`), then run \`${commands.install}\`.`;
     case "restart-pending":
       return `A newer version is installed but the service is still running the previous one. Run \`${commands.restart}\` to switch.`;
   }
