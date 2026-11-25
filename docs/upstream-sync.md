@@ -199,3 +199,34 @@ Skipped (cần dependency chain — lấy khi pick cả chuỗi):
 | 38adba87b3 | Claude không hiện "Connecting" mỗi turn (#42508)    | `claudeProgramReader` từ a09738fb43    |
 | 02d104f7e0 | hiện tiến trình DB migration khi khởi động (#37209) | `makeRecovery` từ e0267fe880 (desktop) |
 | a03bbfc44a | workflow schedule bigint nanoseconds crash (#42607) | durable workflows e414cfd4be           |
+
+### Đợt 2026-11-25-provider (`sync/upstream-2026-11-25-provider` → `feat/locale-vi`)
+
+19 pick nhóm provider (Claude/Codex/OpenCode/update lifecycle) từ cùng range
+`66441268e8..226113fee0`. 2 dep (`b34d8b5bd5`, `404dd5bad2`) phát hiện giữa đường
+qua typecheck — pick bổ sung để đủ API.
+
+| Upstream   | Mô tả                                                                      | Commit fork | Ghi chú                                                                                            |
+| ---------- | -------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------- |
+| c688453acd | fix(claude): text cắt giữ valid Unicode (#40075)                           | ad98f3c665  | —                                                                                                  |
+| 9563012455 | fix(server): provider tìm shell PATH đến sau startup (#31169)              | 8139cc36ef  | —                                                                                                  |
+| e632155b3a | fix(claude): đo context từ main-model pass cuối (#41816)                    | d54270b339  | ClaudeAdapterV2: theirs 3 hunk + `optionalClaudeUsageTokenCount`; fixup squash `Math.max(output)`   |
+| 74382f2530 | fix(server): subagent foreground hiện model của nó (#39729)                | 3b67e518a8  | —                                                                                                  |
+| 28d6719114 | fix(server): kill Claude CLI Windows giết luôn shell con (#41857)          | e2715328fe  | —                                                                                                  |
+| 5f19e91e85 | fix(opencode): model list theo catalog sau snapshot (#41626)               | 76d47eba17  | dep của f516cf9de8                                                                                 |
+| f516cf9de8 | fix(opencode): project skills trong / menu từ snapshot đầu (#42080)        | f3ad08d75e  | driver.ts theirs; cần `connections` stream + signature `processEnv` → kéo dep b34d8b5bd5           |
+| 43a0e74fb9 | fix(server): `t3_thread_launch` validate modelSelection (#42106)           | 546b5ad1c5  | handlers.ts: `assertProjectWorktree`→`projectWorktreePath`; downstream dùng `workspaceStrategy`    |
+| 94190c63f9 | fix(server): OpenCode steers giữ $skill mentions (#42141)                  | cdb75fe583  | —                                                                                                  |
+| fdce61c022 | fix(server): Codex command shell thoát hết hiện Running (#42212)           | 6fc11fbdde  | —                                                                                                  |
+| 1a01d7ee6f | fix(server): Claude hỏi MCP sign-in 1 lần/thread (#42263)                  | 560084c497  | —                                                                                                  |
+| 84e4264bb3 | fix(server): analytics không đọc/gửi account IDs (#42299)                  | f94cbfb8c1  | ProviderDimensions/ProviderUsageAnalytics theirs; telemetry.md theirs + rebrand                    |
+| 6b3899f224 | fix(server): custom models báo `custom:<provider>` (#42465)                | d86b762255  | cùng vùng analytics — theirs                                                                       |
+| 5e3bc17587 | fix(server): ClaudeHome qua symlink giữ session khi switch (#42509)        | a623d1120d  | —                                                                                                  |
+| b2f56cc0aa | fix(server): Claude import giữ question sau quoted cmd (#42674)            | 7fe92a9ee4  | —                                                                                                  |
+| feecca53e4 | fix(provider-core): refresh không giết npm check đang chạy (#42687)        | 36b50df134  | —                                                                                                  |
+| 13c5b0f207 | fix(server): PR writer credit model thread, không phải nó (#26946)         | 646125e5bf  | bị lint-staged rollback nuốt 2 lần → re-pick; evals resolve theirs; cần dep 404dd5bad2             |
+| b34d8b5bd5 | fix(opencode): model list nhận config edit khi server stop (#41813)        | 6523772ee7  | dep của f516cf9de8; driver.ts conflict → keep ours (đã có followScans mới hơn)                     |
+| 404dd5bad2 | fix(server): Conventional Commits giữ prefix trong PR title (#40571)       | 41cde67557  | dep của 13c5b0f207 (`hasConventionalCommitPrefix`); evals conflict → keep ours                     |
+
+Gate: `check:changed` xanh sau khi pick đủ dep; fixup `output_tokens` squash vào
+`d54270b339` qua `git rebase --autosquash`.
