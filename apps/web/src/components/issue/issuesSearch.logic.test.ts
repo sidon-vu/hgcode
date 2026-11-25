@@ -27,6 +27,13 @@ describe("issuesSearchFromUrl", () => {
       ["env", "3"],
     ]);
   });
+
+  it("parses a single project pick and drops malformed ones", () => {
+    expect(issuesSearchFromUrl({ project: ["env", "web"] }).project).toEqual(["env", "web"]);
+    expect(issuesSearchFromUrl({ project: ["env", 3] }).project).toEqual(["env", "3"]);
+    expect(issuesSearchFromUrl({ project: ["env"] }).project).toBeUndefined();
+    expect(issuesSearchFromUrl({ project: "env" }).project).toBeUndefined();
+  });
 });
 
 describe("issueListTargets", () => {
@@ -53,6 +60,26 @@ describe("issueListTargets", () => {
       { environmentId: vps, input: { state: "open", excludeProjectIds: ["docs"] } },
     ]);
     expect(issueListTargets([laptop, vps], projects, undefined, input)).toEqual([
+      { environmentId: laptop, input },
+      { environmentId: vps, input },
+    ]);
+  });
+
+  it("scopes the list to a picked project and falls back on a stale pick", () => {
+    const laptop = EnvironmentId.make("laptop");
+    const vps = EnvironmentId.make("vps");
+    const projects = [
+      { environmentId: laptop, id: ProjectId.make("web") },
+      { environmentId: vps, id: ProjectId.make("docs") },
+    ];
+    const input = { state: "open" } as const;
+    expect(
+      issueListTargets([laptop, vps], projects, undefined, input, [laptop, ProjectId.make("web")]),
+    ).toEqual([{ environmentId: laptop, input: { state: "open", projectId: "web" } }]);
+    // A remembered project that no longer exists reads the whole list again.
+    expect(
+      issueListTargets([laptop, vps], projects, undefined, input, [laptop, ProjectId.make("gone")]),
+    ).toEqual([
       { environmentId: laptop, input },
       { environmentId: vps, input },
     ]);

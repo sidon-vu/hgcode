@@ -33,6 +33,15 @@ const projectPairs = (raw: unknown): IssuesSearch["hideProjects"] => {
   return pairs.length === 0 ? undefined : pairs.slice(0, ISSUE_LIST_MAX_EXCLUDED_PROJECTS);
 };
 
+const projectPair = (raw: unknown): IssuesSearch["project"] => {
+  if (!Array.isArray(raw)) return undefined;
+  const environmentId = bounded(raw[0]);
+  const projectId = bounded(raw[1]);
+  return environmentId && projectId
+    ? ([environmentId as EnvironmentId, projectId as ProjectId] as const)
+    : undefined;
+};
+
 // Every optional key is an own key, even when undefined: the router lays these over the parent
 // route's unvalidated search, where a key left out would keep its raw value.
 export const issuesSearchFromUrl = (raw: Record<string, unknown>): IssuesSearch => ({
@@ -40,6 +49,7 @@ export const issuesSearchFromUrl = (raw: Record<string, unknown>): IssuesSearch 
     raw.who === "assigned" || raw.who === "authored" || raw.who === "mentioned" ? raw.who : "all",
   status: raw.status === "closed" || raw.status === "all" ? raw.status : "open",
   hideProjects: projectPairs(raw.hideProjects),
+  project: projectPair(raw.project),
   host: bounded(raw.host),
   q: bounded(raw.q),
   label: labels(raw.label),
@@ -83,7 +93,18 @@ export function issueListTargets(
   projects: ReadonlyArray<{ readonly id: ProjectId; readonly environmentId: EnvironmentId }>,
   hidden: IssuesSearch["hideProjects"],
   input: IssueListInput,
+  project?: IssuesSearch["project"],
 ): ReadonlyArray<IssueListTarget> {
+  // A picked project reads only its own environment's list; a stale pick falls back to the
+  // full list so a deleted project never leaves the page empty.
+  if (
+    project &&
+    projects.some(
+      (candidate) => candidate.environmentId === project[0] && candidate.id === project[1],
+    )
+  ) {
+    return [{ environmentId: project[0], input: { ...input, projectId: project[1] } }];
+  }
   const keys = issueProjectKeys(hidden);
   return environmentIds.flatMap((environmentId) => {
     const own = projects.filter((project) => project.environmentId === environmentId);

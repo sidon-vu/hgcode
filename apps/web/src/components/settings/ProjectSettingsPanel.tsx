@@ -52,6 +52,7 @@ import {
   canPickExternalProjectFavicon,
   ProjectFaviconPickerDialog,
 } from "./ProjectFaviconPickerDialog";
+import { ProjectIssueTrackerSettings } from "./IssueTrackerSettings";
 import { ProjectActionsSettings } from "./ProjectActionsSettings";
 import { ProjectDefaultsSettings } from "./ProjectDefaultsSettings";
 import {
@@ -693,6 +694,24 @@ function ProjectDetail({
         <ProjectDefaultsSettings category="project" />
         <ProjectActionsSettings />
         {checkoutChoices}
+        {group.memberProjects.map((member) => {
+          const envLabel = member.environmentLabel ?? member.environmentId;
+          return (
+            <ProjectIssueTrackerSettings
+              key={member.physicalProjectKey}
+              environmentId={member.environmentId}
+              projectId={member.id}
+              projectTitle={member.title}
+              environmentLabel={
+                group.memberProjects.length === 1
+                  ? undefined
+                  : (checkoutsByEnvironment.get(member.environmentId)?.length ?? 1) > 1
+                    ? `${envLabel} · ${member.workspaceRoot}`
+                    : envLabel
+              }
+            />
+          );
+        })}
         <SettingsSection title={gt("Danger")}>
           <SettingsRow
             title={

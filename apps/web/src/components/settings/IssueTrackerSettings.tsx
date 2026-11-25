@@ -8,6 +8,7 @@ import type {
   EnvironmentId,
   IssueTrackerConnection,
   IssueTrackerConnectionList,
+  IssueTrackerProjectBinding,
   ProjectId,
 } from "@t3tools/contracts";
 
@@ -322,5 +323,126 @@ function ProjectBindings({
         );
       })}
     </>
+  );
+}
+
+/**
+ * The tracker scopes one project reads, for the project's own settings page: a row per
+ * tracker the environment reports, where the environment-wide settings show a picker per
+ * project. An unconnected tracker still shows, its picker disabled, so the setting can be found.
+ */
+export function ProjectIssueTrackerSettings({
+  environmentId,
+  projectId,
+  projectTitle,
+  environmentLabel,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly projectId: ProjectId;
+  readonly projectTitle: string;
+  readonly environmentLabel?: string | undefined;
+}) {
+  const gt = useGT();
+  const messages = useMessages();
+  const query = useEnvironmentQuery(
+    issueTrackerEnvironment.connections({ environmentId, input: {} }),
+  );
+  const trackers = query.data?.trackers ?? [];
+  const bindings = query.data?.bindings ?? {};
+  if (query.data !== null && trackers.length === 0) return null;
+  return (
+    <SettingsSection
+      title={`${gt("Issue trackers")}${environmentLabel ? ` · ${environmentLabel}` : ""}`}
+    >
+      {trackers.map((tracker) => (
+        <ProjectScopeRow
+          key={`${tracker.tracker}-${environmentId}`}
+          environmentId={environmentId}
+          projectId={projectId}
+          projectTitle={projectTitle}
+          tracker={tracker}
+          bound={bindings[projectId]}
+          summary={issueTrackerSummary(tracker, bindings, messages)}
+        />
+      ))}
+    </SettingsSection>
+  );
+}
+
+function ProjectScopeRow({
+  environmentId,
+  projectId,
+  projectTitle,
+  tracker,
+  bound,
+  summary,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly projectId: ProjectId;
+  readonly projectTitle: string;
+  readonly tracker: IssueTrackerConnection;
+  readonly bound: IssueTrackerProjectBinding | undefined;
+  readonly summary: string;
+}) {
+  const gt = useGT();
+  const bind = useAtomCommand(issueTrackerEnvironment.bindProject, {
+    label: `bind project to ${tracker.displayName}`,
+  });
+  const [pending, setPending] = useState(false);
+  const usable = tracker.connected && tracker.account !== null && tracker.scopes.length > 0;
+  const value = bound?.tracker === tracker.tracker ? bound.scope : UNBOUND;
+
+  const change = async (scope: string) => {
+    setPending(true);
+    await bind({
+      environmentId,
+      input: {
+        projectId,
+        binding: scope === UNBOUND ? null : { tracker: tracker.tracker, scope },
+      },
+    });
+    setPending(false);
+  };
+
+  return (
+    <SettingsRow
+      title={tracker.displayName}
+      description={summary}
+      control={
+        <Select
+          value={value}
+          disabled={pending || !usable}
+          onValueChange={(next) => {
+            if (next !== null) void change(next);
+          }}
+        >
+          <SelectTrigger
+            aria-label={gt("{tracker} {scope} for {project}", {
+              tracker: tracker.displayName,
+              scope: tracker.scopeNoun,
+              project: projectTitle,
+            })}
+            className="w-full @min-[32rem]/settings-row:w-56"
+            size="sm"
+          >
+            <SelectValue>
+              {value === UNBOUND
+                ? gt("Not bound")
+                : (tracker.scopes.find((scope) => scope.key === value)?.name ?? value)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectPopup>
+            <SelectItem value={UNBOUND}>
+              <T>Not bound</T>
+            </SelectItem>
+            {tracker.scopes.map((scope) => (
+              <SelectItem key={scope.key} value={scope.key}>
+                {scope.name} ({scope.key})
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      }
+    />
   );
 }

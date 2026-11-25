@@ -19,6 +19,8 @@ export interface IssueListPreferences {
   readonly status: IssueListState;
   /** Projects left out of the list, so a project added later shows. */
   readonly hideProjects?: ReadonlyArray<readonly [EnvironmentId, ProjectId]> | undefined;
+  /** A single project the list is scoped to; when set, the hide list does not apply. */
+  readonly project?: readonly [EnvironmentId, ProjectId] | undefined;
   readonly host?: string | undefined;
   readonly q?: string | undefined;
   /** `label`, `assignee` and `order` for the same reason: the pull-request page has `labels` and `sort`. */
@@ -43,6 +45,7 @@ export const IssueListPreferencesSchema = Schema.Struct({
       Schema.isMaxLength(ISSUE_LIST_MAX_EXCLUDED_PROJECTS),
     ),
   ),
+  project: Schema.optional(Schema.Tuple([EnvironmentId, ProjectId])),
   host: Schema.optional(BoundedPreference),
   q: Schema.optional(BoundedPreference),
   label: Schema.optional(Schema.Array(BoundedPreference).check(Schema.isMaxLength(20))),
@@ -62,6 +65,7 @@ export function issueListPreferences(search: {
   readonly who: IssueInvolvement;
   readonly status: IssueListState;
   readonly hideProjects?: ReadonlyArray<readonly [EnvironmentId, ProjectId]> | undefined;
+  readonly project?: readonly [EnvironmentId, ProjectId] | undefined;
   readonly host?: string | undefined;
   readonly q?: string | undefined;
   readonly label?: ReadonlyArray<string> | undefined;
@@ -74,6 +78,7 @@ export function issueListPreferences(search: {
     ...(search.hideProjects?.length
       ? { hideProjects: search.hideProjects.slice(0, ISSUE_LIST_MAX_EXCLUDED_PROJECTS) }
       : {}),
+    ...(search.project ? { project: search.project } : {}),
     ...(search.host ? { host: search.host } : {}),
     ...(search.q ? { q: search.q } : {}),
     ...(search.label?.length ? { label: search.label } : {}),

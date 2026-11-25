@@ -45,6 +45,7 @@ import {
   type IssueListPreferences,
 } from "~/components/issue/issueListPreferences";
 import { IssueGlyph, issueTrackerPresentation } from "~/components/issue/issuePresentation";
+import { ProjectFavicon, type ProjectFaviconProject } from "~/components/ProjectFavicon";
 import { PullRequestDetailPanel } from "~/components/pullRequest/PullRequestDetailPanel";
 import { PullRequestMarkdownPanelContext } from "~/components/pullRequest/PullRequestMarkdown";
 import { PullRequestListGhost } from "~/components/pullRequest/PullRequestGhosts";
@@ -232,6 +233,7 @@ export function IssuesPage() {
         filterProjects,
         search.hideProjects,
         listInput,
+        search.project,
       );
   const list = useIssueList(targets);
   // Refreshing a list still loading would cancel it and start over, losing the scopes already read.
@@ -280,9 +282,13 @@ export function IssuesPage() {
   // would be, and each tracker's rows carry on from their own cursors.
   // The server names every tracker so the menu can switch hosts, but reads only the chosen one.
   const chosenHost = search.host?.toLowerCase();
-  // A server older than `excludeProjectIds` still answers for hidden projects.
+  const chosenProject = search.project;
+  const inChosenProject = (environmentId: EnvironmentId, projectId: ProjectId) =>
+    chosenProject === undefined ||
+    (chosenProject[0] === environmentId && chosenProject[1] === projectId);
+  // A server older than `excludeProjectIds`/`projectId` still answers for the full list.
   const shown =
-    chosenHost || hiddenProjects.size > 0
+    chosenHost || hiddenProjects.size > 0 || chosenProject !== undefined
       ? new Map(
           [...held].map(([environmentId, page]) => [
             environmentId,
@@ -290,23 +296,29 @@ export function IssuesPage() {
               ...page,
               entries: page.entries.filter(
                 (entry) =>
-                  !hiddenProjects.has(
-                    pullRequestProjectKey({ environmentId, id: entry.projectId }),
-                  ),
+                  inChosenProject(environmentId, entry.projectId) &&
+                  (chosenProject !== undefined ||
+                    !hiddenProjects.has(
+                      pullRequestProjectKey({ environmentId, id: entry.projectId }),
+                    )),
               ),
               errors: page.errors.filter(
                 (error) =>
-                  !hiddenProjects.has(
-                    pullRequestProjectKey({ environmentId, id: error.projectId }),
-                  ),
+                  inChosenProject(environmentId, error.projectId) &&
+                  (chosenProject !== undefined ||
+                    !hiddenProjects.has(
+                      pullRequestProjectKey({ environmentId, id: error.projectId }),
+                    )),
               ),
               answer: {
                 ...page.answer,
                 scopes: page.answer.scopes?.filter(
                   (scope) =>
-                    !hiddenProjects.has(
-                      pullRequestProjectKey({ environmentId, id: scope.projectId }),
-                    ),
+                    inChosenProject(environmentId, scope.projectId) &&
+                    (chosenProject !== undefined ||
+                      !hiddenProjects.has(
+                        pullRequestProjectKey({ environmentId, id: scope.projectId }),
+                      )),
                 ),
                 trackers: chosenHost
                   ? page.answer.trackers.filter(
@@ -336,6 +348,7 @@ export function IssuesPage() {
       who: merged.who ?? search.who,
       status: merged.status ?? search.status,
       ...(merged.hideProjects?.length ? { hideProjects: merged.hideProjects } : {}),
+      ...(merged.project ? { project: merged.project } : {}),
       ...(merged.host ? { host: merged.host } : {}),
       q: merged.q || undefined,
       ...(merged.label?.length ? { label: merged.label } : {}),
@@ -715,6 +728,14 @@ export function IssuesPage() {
                     onSubmit={(q) => updateSearch({ q: q || undefined })}
                   />
                 </div>
+                {filterProjects.length > 1 || search.project !== undefined ? (
+                  <ProjectFilterMenu
+                    label={gt("Projects")}
+                    selected={search.project}
+                    projects={filterProjects}
+                    onChange={(project) => updateSearch({ project })}
+                  />
+                ) : null}
                 <PullRequestCompactFilterMenu
                   label={gt("Sort issues")}
                   triggerIcon={<ArrowDownUpIcon aria-hidden className="size-4" />}
@@ -751,6 +772,7 @@ export function IssuesPage() {
                       who: view.who,
                       status: view.status,
                       hideProjects: view.hideProjects,
+                      project: view.project,
                       host: view.host,
                       q: view.q,
                       label: view.label,
@@ -886,6 +908,73 @@ export function IssuesPage() {
         ) : null}
       </div>
     </SidebarInset>
+  );
+}
+
+function ProjectFilterMenu({
+  label,
+  selected,
+  projects,
+  onChange,
+}: {
+  label: string;
+  selected: readonly [EnvironmentId, ProjectId] | undefined;
+  projects: ReadonlyArray<
+    ProjectFaviconProject & {
+      readonly id: ProjectId;
+      readonly environmentId: EnvironmentId;
+      readonly title: string;
+    }
+  >;
+  onChange: (project: readonly [EnvironmentId, ProjectId] | undefined) => void;
+}) {
+  const gt = useGT();
+  const selectedKey = selected ? JSON.stringify(selected) : "";
+  const current = projects.find((project) => pullRequestProjectKey(project) === selectedKey);
+  const currentLabel =
+    current?.title ?? (selected ? `${selected[0]} / ${selected[1]}` : gt("All projects"));
+  return (
+    <Menu>
+      <MenuTrigger aria-label={`${label}: ${currentLabel}`} render={<Button variant="outline" />}>
+        {current ? (
+          <ProjectFavicon project={current} className="size-3.5" />
+        ) : (
+          <LayersIcon aria-hidden className="size-4" />
+        )}
+        <span className="truncate">{currentLabel}</span>
+      </MenuTrigger>
+      <MenuPopup align="start">
+        <MenuRadioGroup
+          value={selectedKey}
+          onValueChange={(next) =>
+            onChange(next ? (JSON.parse(next) as [EnvironmentId, ProjectId]) : undefined)
+          }
+        >
+          <MenuRadioItem value="">
+            <span className="flex min-w-0 items-center gap-2">
+              <LayersIcon aria-hidden className="size-3.5" />
+              <span className="min-w-0 flex-1 truncate">{gt("All projects")}</span>
+            </span>
+          </MenuRadioItem>
+          {selected !== undefined && current === undefined ? (
+            <MenuRadioItem value={selectedKey}>
+              <span className="min-w-0 flex-1 truncate">{currentLabel}</span>
+            </MenuRadioItem>
+          ) : null}
+          {projects.map((project) => {
+            const key = pullRequestProjectKey(project);
+            return (
+              <MenuRadioItem key={key} value={key}>
+                <span className="flex min-w-0 items-center gap-2">
+                  <ProjectFavicon project={project} className="size-3.5" />
+                  <span className="min-w-0 flex-1 truncate">{project.title}</span>
+                </span>
+              </MenuRadioItem>
+            );
+          })}
+        </MenuRadioGroup>
+      </MenuPopup>
+    </Menu>
   );
 }
 
