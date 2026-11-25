@@ -38,7 +38,55 @@ export function nextHostAccountChoices(
   const previous = current[host];
   const enabled = change.enabled ?? previous?.enabled ?? true;
   const account = change.account === undefined ? previous?.account : (change.account ?? undefined);
+  const repositoryAccounts = previous?.repositoryAccounts ?? {};
   const { [host]: _replaced, ...rest } = current;
-  if (enabled && account === undefined) return rest;
-  return { ...rest, [host]: { enabled, ...(account === undefined ? {} : { account }) } };
+  if (enabled && account === undefined && Object.keys(repositoryAccounts).length === 0) return rest;
+  return {
+    ...rest,
+    [host]: {
+      enabled,
+      ...(account === undefined ? {} : { account }),
+      ...(Object.keys(repositoryAccounts).length === 0 ? {} : { repositoryAccounts }),
+    },
+  };
+}
+
+/** The key Settings stores a repository account under, spelled the way the server reads it. */
+export function repositoryAccountKey(repository: string): string {
+  return repository
+    .trim()
+    .toLowerCase()
+    .replace(/\.git\/?$/, "")
+    .split(/[/:]/)
+    .filter((segment) => segment.length > 0)
+    .slice(-2)
+    .join("/");
+}
+
+/**
+ * The host account map after pinning `account` to `repository` under `host`; `null` clears the
+ * pin so the host pick applies.
+ */
+export function nextHostRepositoryAccountChoices(
+  current: HostCredentialSettings["hosts"],
+  host: string,
+  repository: string,
+  account: string | null,
+): HostCredentialSettings["hosts"] {
+  const previous = current[host];
+  const enabled = previous?.enabled ?? true;
+  const repositoryAccounts = { ...previous?.repositoryAccounts };
+  const key = repositoryAccountKey(repository);
+  if (account === null) {
+    delete repositoryAccounts[key];
+  } else {
+    repositoryAccounts[key] = account;
+  }
+  const { [host]: _replaced, ...rest } = current;
+  const choice = {
+    enabled,
+    ...(previous?.account === undefined ? {} : { account: previous.account }),
+    ...(Object.keys(repositoryAccounts).length === 0 ? {} : { repositoryAccounts }),
+  };
+  return { ...rest, [host]: choice };
 }

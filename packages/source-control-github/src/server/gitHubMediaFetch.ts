@@ -122,6 +122,7 @@ export const make = Effect.gen(function* () {
         method: "POST",
         path: "markdown",
         accept: "text/html",
+        repository,
         body: { text: `![](${url})`, mode: "gfm", context: repository },
       })
       .pipe(Effect.orElseSucceed(() => null));

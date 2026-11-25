@@ -1,17 +1,30 @@
-import type { EnvironmentId, SourceControlProviderAuth } from "@t3tools/contracts";
+import type {
+  EnvironmentId,
+  RepositoryIdentity,
+  SourceControlProviderAuth,
+} from "@t3tools/contracts";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useState } from "react";
 import { T, useGT, Var } from "gt-react";
 
 import { useEnvironmentSettings } from "../../hooks/useSettings";
+import { useEnvironmentQuery } from "../../state/query";
 import { serverEnvironment } from "../../state/server";
+import { sourceControlEnvironment } from "../../state/sourceControl";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../ui/button";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { groupHostAccounts, nextHostAccountChoices } from "./SourceControlAccountSettings.logic";
+import { SettingsRow, SettingsSection } from "./settingsLayout";
+import {
+  groupHostAccounts,
+  nextHostAccountChoices,
+  nextHostRepositoryAccountChoices,
+  repositoryAccountKey,
+} from "./SourceControlAccountSettings.logic";
 import {
   readHostCredentialSettings,
+  sourceControlClients,
   type SourceControlDefinition,
   type SourceControlHostCredentials,
 } from "@t3tools/client-runtime/source-control-clients";
@@ -19,6 +32,8 @@ import { redactedPlaceholder } from "./RedactedSensitiveText";
 
 /** Sentinel select value for "follow the CLI's active login"; logins never contain spaces. */
 const ACTIVE_ACCOUNT = "active cli account";
+/** Sentinel for "use the host's account pick"; logins never contain spaces. */
+const DEFAULT_ACCOUNT = "default host account";
 
 function RedactedLogin(props: {
   readonly account: string;
@@ -276,5 +291,146 @@ export function SourceControlAccountSettings({
         );
       })}
     </div>
+  );
+}
+
+/**
+ * The login one project's repository uses, for the project's own settings page. It pins a
+ * `gh`-style account under the repository's host; unset, the host pick from Source control &
+ * issues applies.
+ */
+export function ProjectRepositoryAccountSettings({
+  environmentId,
+  repositoryIdentity,
+  environmentLabel,
+}: {
+  readonly environmentId: EnvironmentId;
+  readonly repositoryIdentity: RepositoryIdentity | null | undefined;
+  readonly environmentLabel?: string | undefined;
+}) {
+  const gt = useGT();
+  const provider = repositoryIdentity?.provider;
+  const definition = provider === undefined ? undefined : sourceControlClients.find(provider);
+  const discovery = useEnvironmentQuery(
+    definition?.credentials === undefined
+      ? null
+      : sourceControlEnvironment.discovery({ environmentId, input: {} }),
+  );
+  const { hosts } = useEnvironmentSettings(environmentId, (settings) =>
+    provider === undefined
+      ? ({ hosts: {} } as ReturnType<typeof readHostCredentialSettings>)
+      : readHostCredentialSettings(settings, provider),
+  );
+  const updateSettings = useAtomCommand(serverEnvironment.updateSettings, {
+    label: `save ${definition?.label ?? "repository"} account`,
+  });
+  const [saving, setSaving] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  if (definition?.credentials === undefined || repositoryIdentity == null) return null;
+  const [host = "", ...path] = repositoryIdentity.canonicalKey.split("/");
+  const repository = repositoryAccountKey(path.join("/"));
+  if (host === "" || repository === "") return null;
+
+  const item = discovery.data?.sourceControlProviders.find((entry) => entry.kind === provider);
+  const group = groupHostAccounts(item?.auth.accounts ?? []).find((entry) => entry.host === host);
+  const selectable = group?.selectable ?? [];
+  const choice = hosts[host];
+  const pinned = choice?.repositoryAccounts?.[repository];
+  const stalePin = pinned !== undefined && !selectable.includes(pinned);
+  const options = [...new Set([...(pinned === undefined ? [] : [pinned]), ...selectable])];
+
+  const save = async (account: string | null) => {
+    setSaving(true);
+    await updateSettings({
+      environmentId,
+      input: {
+        patch: {
+          sourceControlHosts: {
+            [definition.kind]: {
+              hosts: nextHostRepositoryAccountChoices(hosts, host, repository, account),
+            },
+          },
+        },
+      },
+    });
+    setSaving(false);
+  };
+
+  return (
+    <SettingsSection
+      title={`${gt("{label} account", { label: definition.label })}${environmentLabel ? ` · ${environmentLabel}` : ""}`}
+    >
+      <SettingsRow
+        title={<span className="font-mono text-xs">{repository}</span>}
+        description={gt("When unset, the account picked for {host} is used.", { host })}
+        control={
+          <div className="flex items-center gap-1">
+            <div className="w-56 max-w-full">
+              <Select
+                value={stalePin && pinned !== undefined ? pinned : (pinned ?? DEFAULT_ACCOUNT)}
+                disabled={saving || choice?.enabled === false || selectable.length === 0}
+                onValueChange={(value) => {
+                  if (typeof value !== "string") return;
+                  void save(value === DEFAULT_ACCOUNT ? null : value);
+                }}
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label={gt("{label} account for {repository}", {
+                    label: definition.label,
+                    repository,
+                  })}
+                >
+                  <SelectValue>
+                    {(value: string) =>
+                      value === DEFAULT_ACCOUNT ? (
+                        <T>Default</T>
+                      ) : (
+                        <RedactedLogin revealed={revealed} account={value} />
+                      )
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup align="end" alignItemWithTrigger={false}>
+                  <SelectItem value={DEFAULT_ACCOUNT}>
+                    <T>Default</T>
+                  </SelectItem>
+                  {options.map((account, index) => (
+                    <SelectItem key={account} value={account}>
+                      <RedactedLogin
+                        revealed={revealed}
+                        account={account}
+                        label={gt("Account {number}", { number: index + 1 })}
+                      />
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </div>
+            <Button
+              size="icon-xs"
+              variant="ghost-muted"
+              onClick={() => setRevealed((current) => !current)}
+              aria-label={revealed ? gt("Hide accounts") : gt("Reveal accounts")}
+              aria-pressed={revealed}
+            >
+              {revealed ? <EyeOffIcon /> : <EyeIcon />}
+            </Button>
+          </div>
+        }
+      />
+      {stalePin && pinned !== undefined ? (
+        <SettingsRow
+          title={gt("The chosen login is no longer signed in")}
+          description={gt("The host account pick is used until you choose another.")}
+          control={
+            <Button size="xs" variant="outline" disabled={saving} onClick={() => void save(null)}>
+              <T>Use default</T>
+            </Button>
+          }
+        />
+      ) : null}
+    </SettingsSection>
   );
 }

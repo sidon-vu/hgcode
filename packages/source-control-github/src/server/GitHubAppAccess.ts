@@ -204,10 +204,11 @@ export const make = Effect.gen(function* () {
     "GitHubAppAccess.credentialFor",
   )(function* (host, repository) {
     // Pinned work cannot be handed on, so only confirmed app access keeps the app credential.
-    if ((yield* coverageFor(host, repository)) === "covered") return yield* api.credential(host);
+    if ((yield* coverageFor(host, repository)) === "covered")
+      return yield* api.credential(host, { repository });
     return yield* api
-      .credential(host, { personal: true })
-      .pipe(Effect.catch(() => api.credential(host)));
+      .credential(host, { personal: true, repository })
+      .pipe(Effect.catch(() => api.credential(host, { repository })));
   });
 
   return GitHubAppAccess.of({ reach, viewer, credentialFor });

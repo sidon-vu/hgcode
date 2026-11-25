@@ -84,6 +84,7 @@ export const make = Effect.gen(function* () {
       .rest({
         host: input.host,
         operation: "subscribePullRequestEvents",
+        repository: input.repository,
         method: "POST",
         path: "event-subscriptions",
         body: { resource_url: resourceUrl, event_types: EVENT_TYPES },
@@ -116,12 +117,14 @@ export const make = Effect.gen(function* () {
 
   const unsubscribe = Effect.fn("GitHubPullRequestEvents.unsubscribe")(function* (
     host: string,
+    repository: string,
     id: string | number,
   ) {
     yield* rest
       .rest({
         host,
         operation: "unsubscribePullRequestEvents",
+        repository,
         method: "DELETE",
         path: `event-subscriptions/${encodeURIComponent(String(id))}`,
       })
@@ -133,10 +136,11 @@ export const make = Effect.gen(function* () {
     host: string,
     eventsUrl: string,
     personal: boolean,
+    repository: string,
   ): Stream.Stream<"changed" | Ending> =>
     Stream.unwrap(
       Effect.gen(function* () {
-        const held = yield* rest.credential(host, { personal });
+        const held = yield* rest.credential(host, { personal, repository });
         const response = yield* httpClient
           .execute(
             HttpClientRequest.get(eventsUrl).pipe(
@@ -200,7 +204,7 @@ export const make = Effect.gen(function* () {
           Effect.map((openedAt) => {
             let ending: Ending = "reconnect";
             let changes = 0;
-            return connection(target.host, eventsUrl, personal).pipe(
+            return connection(target.host, eventsUrl, personal, target.repository).pipe(
               Stream.flatMap((element) => {
                 if (element === "changed") {
                   changes += 1;
@@ -247,7 +251,9 @@ export const make = Effect.gen(function* () {
     const subscription = (session: { renew: boolean }): Stream.Stream<void> =>
       Stream.unwrap(
         Effect.acquireRelease(subscribe(target), (held) =>
-          Option.isSome(held) ? unsubscribe(target.host, held.value.id) : Effect.void,
+          Option.isSome(held)
+            ? unsubscribe(target.host, target.repository, held.value.id)
+            : Effect.void,
         ).pipe(
           Effect.map(
             Option.match({

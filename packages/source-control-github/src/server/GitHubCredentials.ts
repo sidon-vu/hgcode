@@ -104,6 +104,7 @@ export class GitHubCredentials extends Context.Service<
   {
     readonly get: (
       host: string,
+      repository?: string,
     ) => Effect.Effect<GitHubCredential, GitHubCredentialUnavailableError>;
     /** The token saved in Settings for `host`, which outranks every other source. */
     readonly saved: (
@@ -127,6 +128,18 @@ export function isGitHubHost(host: string): boolean {
 
 function isGitHubDotCom(host: string): boolean {
   return host === "github.com" || host.endsWith(".ghe.com");
+}
+
+/** Callers may name a repository as a URL, `host/owner/name` or `owner/name.git`. */
+function repositoryKey(repository: string): string {
+  return repository
+    .trim()
+    .toLowerCase()
+    .replace(/\.git\/?$/, "")
+    .split(/[/:]/)
+    .filter((segment) => segment.length > 0)
+    .slice(-2)
+    .join("/");
 }
 
 /** Restrict GH_ENTERPRISE_TOKEN to GH_HOST to prevent remote URLs from leaking it. */
@@ -284,18 +297,29 @@ export const make = Effect.gen(function* () {
   });
 
   return GitHubCredentials.of({
-    get: Effect.fn("GitHubCredentials.get")(function* (rawHost) {
+    get: Effect.fn("GitHubCredentials.get")(function* (rawHost, repository) {
       const host = normalizeHost(rawHost);
       const fromSettings = yield* saved(host);
       if (Option.isSome(fromSettings)) return fromSettings.value;
-      return yield* Cache.get(cache, cacheKey(host, (yield* hostChoice(host))?.account));
+      const choice = yield* hostChoice(host);
+      const account =
+        repository === undefined
+          ? choice?.account
+          : (choice?.repositoryAccounts?.[repositoryKey(repository)] ?? choice?.account);
+      return yield* Cache.get(cache, cacheKey(host, account));
     }),
     saved,
     fingerprint: fingerprintOf,
     invalidate: Effect.fn("GitHubCredentials.invalidate")(function (rawHost) {
       const host = normalizeHost(rawHost);
       return hostChoice(host).pipe(
-        Effect.flatMap((choice) => Cache.invalidate(cache, cacheKey(host, choice?.account))),
+        Effect.flatMap((choice) =>
+          Effect.forEach(
+            [choice?.account, ...Object.values(choice?.repositoryAccounts ?? {}), undefined],
+            (account) => Cache.invalidate(cache, cacheKey(host, account)),
+            { discard: true },
+          ),
+        ),
       );
     }),
   });

@@ -183,6 +183,7 @@ export const runGitHubStackAction = Effect.fn("runGitHubStackAction")(function* 
       GitHubGraphQlClient.call({
         host: input.host,
         operation: "runGitHubStackAction",
+        repository: input.repository,
         allowReserve: true,
       }),
       Effect.catchIf(
@@ -237,6 +238,7 @@ export const runGitHubStackAction = Effect.fn("runGitHubStackAction")(function* 
   const request = yield* api.rest({
     host: input.host,
     operation: "runGitHubStackAction",
+    repository: input.repository,
     method: "PUT",
     path: `${endpoint}/pulls/${input.number}/merge-async`,
     body: {
@@ -258,6 +260,7 @@ export const runGitHubStackAction = Effect.fn("runGitHubStackAction")(function* 
     const poll = yield* api.rest({
       host: input.host,
       operation: "runGitHubStackAction",
+      repository: input.repository,
       path: `${endpoint}/pulls/${input.number}/merge-async/${encodeURIComponent(uuid)}`,
     });
     result = yield* decode(poll.body);

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { groupHostAccounts, nextHostAccountChoices } from "./SourceControlAccountSettings.logic";
+import {
+  groupHostAccounts,
+  nextHostAccountChoices,
+  nextHostRepositoryAccountChoices,
+} from "./SourceControlAccountSettings.logic";
 
 describe("groupHostAccounts", () => {
   it("groups logins by host, keeping broken and environment logins out of the picker", () => {
@@ -51,5 +55,59 @@ describe("nextHostAccountChoices", () => {
     expect(
       nextHostAccountChoices(disabled, "github.com", { enabled: true, account: null }),
     ).toEqual(other);
+  });
+
+  it("keeps repository pins across host-level account and enabled changes", () => {
+    const pinned = nextHostRepositoryAccountChoices({}, "github.com", "Owner/Repo.git", "work");
+    expect(pinned).toEqual({
+      "github.com": { enabled: true, repositoryAccounts: { "owner/repo": "work" } },
+    });
+
+    const repicked = nextHostAccountChoices(pinned, "github.com", { account: "personal" });
+    expect(repicked["github.com"]).toEqual({
+      enabled: true,
+      account: "personal",
+      repositoryAccounts: { "owner/repo": "work" },
+    });
+
+    expect(nextHostAccountChoices(repicked, "github.com", { enabled: false })).toEqual({
+      "github.com": {
+        enabled: false,
+        account: "personal",
+        repositoryAccounts: { "owner/repo": "work" },
+      },
+    });
+  });
+});
+
+describe("nextHostRepositoryAccountChoices", () => {
+  it("pins, repins and clears a repository, keeping the host pick", () => {
+    const host = {
+      "github.com": {
+        enabled: true,
+        account: "personal",
+        repositoryAccounts: { "other/repo": "work" },
+      },
+    };
+    const pinned = nextHostRepositoryAccountChoices(host, "github.com", "owner/repo", "work");
+    expect(pinned["github.com"]).toEqual({
+      enabled: true,
+      account: "personal",
+      repositoryAccounts: { "other/repo": "work", "owner/repo": "work" },
+    });
+
+    const cleared = nextHostRepositoryAccountChoices(pinned, "github.com", "owner/repo", null);
+    expect(cleared["github.com"]).toEqual({
+      enabled: true,
+      account: "personal",
+      repositoryAccounts: { "other/repo": "work" },
+    });
+  });
+
+  it("keeps the host entry after the last pin is cleared so the account pick survives", () => {
+    const pinned = nextHostRepositoryAccountChoices({}, "github.com", "owner/repo", "work");
+    expect(nextHostRepositoryAccountChoices(pinned, "github.com", "owner/repo", null)).toEqual({
+      "github.com": { enabled: true },
+    });
   });
 });

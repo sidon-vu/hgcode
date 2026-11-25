@@ -33,6 +33,8 @@ export class GitHubGraphQlTarget extends Context.Service<
     readonly allowReserve?: boolean | undefined;
     /** A longer answer fails as a `GitHubApiResponseError`. Defaults to 8 MB. */
     readonly maxResponseBytes?: number | undefined;
+    /** The repository the call names, for a host whose Settings pin a login per repository. */
+    readonly repository?: string | undefined;
   }
 >()("@t3tools/source-control-github/server/gitHubGraphQlClient/GitHubGraphQlTarget") {}
 
@@ -95,6 +97,7 @@ export class GitHubGraphQlAuth extends GraphQLMiddleware.Service<
               operation: target.operation,
               resource: "graphql",
               allowReserve: target.allowReserve ?? (yield* SourceControlRateLimit.Interactive),
+              repository: target.repository,
             },
             (headers, source) =>
               next({ ...request, headers: Headers.setAll(request.headers, headers) }).pipe(

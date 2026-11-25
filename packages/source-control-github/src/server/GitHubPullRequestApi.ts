@@ -1044,6 +1044,7 @@ interface RestReadInput<A> {
   readonly host: string;
   readonly operation: string;
   readonly path: string;
+  readonly repository?: string | undefined;
   readonly decode: (raw: string) => Result.Result<A, unknown>;
 }
 
@@ -1176,6 +1177,7 @@ export const make = Effect.gen(function* () {
       readonly host: string;
       readonly operation: string;
       readonly allowReserve?: boolean | undefined;
+      readonly repository?: string | undefined;
     }) =>
     <A, E, R>(
       effect: Effect.Effect<A, E, R>,
@@ -1192,6 +1194,7 @@ export const make = Effect.gen(function* () {
           host: input.host,
           operation: input.operation,
           ...(input.allowReserve === true ? { allowReserve: true } : {}),
+          ...(input.repository === undefined ? {} : { repository: input.repository }),
         }),
         Effect.mapError((error) =>
           isGraphQlClientError(error)
@@ -1317,7 +1320,12 @@ export const make = Effect.gen(function* () {
   /** A REST read whose JSON answer is decoded the same way. */
   const restRead = <A>(input: RestReadInput<A>): Effect.Effect<A, GitHubPullRequestApiError> =>
     api
-      .rest({ host: input.host, operation: input.operation, path: input.path })
+      .rest({
+        host: input.host,
+        operation: input.operation,
+        path: input.path,
+        repository: input.repository,
+      })
       .pipe(
         Effect.flatMap((response) =>
           decodeWith(input.cwd, input.operation, input.decode, response.body),
@@ -1338,7 +1346,9 @@ export const make = Effect.gen(function* () {
     input: RestReadInput<A>,
   ) {
     const host = normalizeHost(input.host);
-    const { token, fingerprint } = yield* api.credential(host);
+    const { token, fingerprint } = yield* api.credential(host, {
+      repository: input.repository,
+    });
     const key = `${fingerprint}\0${host}\0${input.path}`;
     const previous = yield* Cache.get(validators, key);
     const response = yield* api
@@ -1346,6 +1356,7 @@ export const make = Effect.gen(function* () {
         host,
         operation: input.operation,
         path: input.path,
+        repository: input.repository,
         ...(Option.isSome(previous) ? { ifNoneMatch: previous.value.etag } : {}),
       })
       .pipe(
@@ -1381,6 +1392,7 @@ export const make = Effect.gen(function* () {
       .rest({
         host: input.host,
         operation: "getPullRequestDiff",
+        repository: input.repository,
         path:
           input.commit === undefined
             ? `repos/${owner}/${name}/pulls/${input.number}/files?${paging}`
@@ -1431,6 +1443,7 @@ export const make = Effect.gen(function* () {
       const refsResponse = yield* api.rest({
         host: input.host,
         operation: "getPullRequestDiffFileContents",
+        repository: input.repository,
         path:
           input.commit === undefined
             ? `repos/${owner}/${name}/pulls/${input.number}`
@@ -1470,6 +1483,7 @@ export const make = Effect.gen(function* () {
               .rest({
                 host: input.host,
                 operation: "getPullRequestDiffFileContents",
+                repository: input.repository,
                 path: `repos/${owner}/${name}/compare/${baseRef}...${headRef}?per_page=1&page=2`,
                 timeout: DIFF_TIMEOUT,
               })
@@ -1490,6 +1504,7 @@ export const make = Effect.gen(function* () {
           .rest({
             host: input.host,
             operation: "getPullRequestDiffFileContents",
+            repository: input.repository,
             accept: "application/vnd.github.raw+json",
             path: `repos/${owner}/${name}/contents/${filePath
               .split("/")
@@ -1700,6 +1715,7 @@ export const make = Effect.gen(function* () {
         const read: GitHubWorkflowRunPage = yield* restRead({
           cwd: input.cwd,
           host: input.host,
+          repository: input.repository,
           operation: "listWorkflowRunsRequiringApproval",
           path: `repos/${owner}/${name}/actions/runs?head_sha=${encodeURIComponent(input.headSha)}&branch=${encodeURIComponent(input.headBranch)}&event=pull_request&status=action_required&per_page=100&page=${page}`,
           decode: decodeWorkflowRunsJson,
@@ -2053,7 +2069,7 @@ export const make = Effect.gen(function* () {
       // the credential that request carried. A personal credential is pinned for the whole
       // read, so a token changed mid-read does not split it; the app keeps the policy's fallback.
       const host = normalizeHost(input.host);
-      return api.credential(host).pipe(
+      return api.credential(host, { repository: input.repository }).pipe(
         Effect.flatMap(({ token, fingerprint, source }) =>
           source === undefined || source === "app"
             ? listed
@@ -2184,6 +2200,7 @@ export const make = Effect.gen(function* () {
         return revalidatedRestRead({
           cwd: input.cwd,
           host: input.host,
+          repository: input.repository,
           operation: "listUnfinishedWorkflowRuns",
           path: `repos/${owner}/${name}/actions/runs?head_sha=${encodeURIComponent(input.headSha)}&per_page=100`,
           decode: decodeUnfinishedWorkflowRunsJson,
@@ -2197,6 +2214,7 @@ export const make = Effect.gen(function* () {
       return revalidatedRestRead({
         cwd: input.cwd,
         host: input.host,
+        repository: input.repository,
         operation: "getPullRequestStack",
         path: `repos/${owner}/${name}/stacks?pull_request=${input.number}`,
         decode: decodePullRequestStacksJson,
@@ -2207,6 +2225,7 @@ export const make = Effect.gen(function* () {
           return restRead({
             cwd: input.cwd,
             host: input.host,
+            repository: input.repository,
             operation: "getPullRequestStack",
             path: `repos/${owner}/${name}/stacks/${stack.number}`,
             decode: (raw) => decodePullRequestStacksJson(`[${raw}]`),
@@ -2311,6 +2330,7 @@ export const make = Effect.gen(function* () {
         api.rest({
           host: input.host,
           operation: "getPullRequestDiff",
+          repository: input.repository,
           path:
             input.commit === undefined
               ? `repos/${owner}/${name}/pulls/${input.number}`
@@ -2531,6 +2551,7 @@ export const make = Effect.gen(function* () {
         .rest({
           host: input.host,
           operation: "setReviewerRequest",
+          repository: input.repository,
           method: input.requested ? "POST" : "DELETE",
           path: `repos/${owner}/${name}/pulls/${input.number}/requested_reviewers`,
           body: buildReviewerRequest(input.reviewers),
@@ -2610,6 +2631,7 @@ export const make = Effect.gen(function* () {
           .rest({
             host: input.host,
             operation: "setLabels",
+            repository: input.repository,
             method: "POST",
             path: issue,
             body: buildLabelRequest(input.labels),
@@ -2622,6 +2644,7 @@ export const make = Effect.gen(function* () {
           api.rest({
             host: input.host,
             operation: "setLabels",
+            repository: input.repository,
             method: "DELETE",
             path: `${issue}/${encodeURIComponent(label)}`,
           }),
@@ -2793,6 +2816,7 @@ export const make = Effect.gen(function* () {
                               .rest({
                                 host: input.host,
                                 operation: "approveWorkflowRun",
+                                repository: input.repository,
                                 method: "POST",
                                 path: `repos/${owner}/${name}/actions/runs/${run.id}/approve`,
                               })
@@ -2929,6 +2953,7 @@ export const make = Effect.gen(function* () {
             .rest({
               host: input.host,
               operation: "readCheckLog",
+              repository: input.repository,
               path: `repos/${owner}/${name}/actions/jobs/${jobId}/logs`,
               maxResponseBytes: CHECK_LOG_MAX_BYTES,
               timeout: "60 seconds",
@@ -2968,7 +2993,12 @@ export const make = Effect.gen(function* () {
           if (jobId === null)
             return Effect.succeed({ check, jobId, runId: null, detail: NOT_A_JOB });
           return api
-            .rest({ host: input.host, operation: "readCheckJob", path: `${root}/jobs/${jobId}` })
+            .rest({
+              host: input.host,
+              operation: "readCheckJob",
+              repository: input.repository,
+              path: `${root}/jobs/${jobId}`,
+            })
             .pipe(
               Effect.flatMap((response) => decodeActionsJob(response.body)),
               Effect.map((job) => ({ check, jobId, runId: job.run_id, detail: null })),
@@ -2990,18 +3020,27 @@ export const make = Effect.gen(function* () {
         byRun.set(entry.runId, [...(byRun.get(entry.runId) ?? []), entry]);
       }
       const post = (path: string) =>
-        api.rest({ host: input.host, operation: "rerunChecks", method: "POST", path }).pipe(
-          Effect.as<string | null>(null),
-          Effect.catchTags({
-            GitHubApiNotFoundError: (error) => Effect.succeed(error.message),
-            GitHubApiResponseError: (error) => Effect.succeed(error.message),
-          }),
-        );
+        api
+          .rest({
+            host: input.host,
+            operation: "rerunChecks",
+            repository: input.repository,
+            method: "POST",
+            path,
+          })
+          .pipe(
+            Effect.as<string | null>(null),
+            Effect.catchTags({
+              GitHubApiNotFoundError: (error) => Effect.succeed(error.message),
+              GitHubApiResponseError: (error) => Effect.succeed(error.message),
+            }),
+          );
       const failedJobsOf = (runId: number) =>
         api
           .rest({
             host: input.host,
             operation: "readRunJobs",
+            repository: input.repository,
             path: `${root}/runs/${runId}/jobs?filter=latest&per_page=100`,
           })
           .pipe(
@@ -3055,6 +3094,7 @@ export const make = Effect.gen(function* () {
         .rest({
           host: input.host,
           operation: "submitReview",
+          repository: input.repository,
           method: "POST",
           path: `repos/${owner}/${name}/pulls/${input.number}/reviews`,
           body: buildReviewSubmission({

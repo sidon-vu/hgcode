@@ -172,11 +172,14 @@ export const make = Effect.gen(function* () {
   });
 
   const graphql =
-    (host: string, operation: string) =>
+    (host: string, operation: string, repository?: string) =>
     <A, E extends GitHubRequestPolicy.GitHubApiError | GraphQLClientError.GraphQLClientError, R>(
       effect: Effect.Effect<A, E, R>,
     ) =>
-      effect.pipe(GitHubGraphQlClient.call({ host, operation }), Effect.mapError(fail(operation)));
+      effect.pipe(
+        GitHubGraphQlClient.call({ host, operation, repository }),
+        Effect.mapError(fail(operation)),
+      );
 
   const verifiedIssue = Effect.fn("GitHubIssueTracker.verifiedIssue")(function* (
     input: { readonly host: string; readonly scope: string; readonly key: string },
@@ -187,7 +190,7 @@ export const make = Effect.gen(function* () {
     // REST issue endpoints also accept pull requests; resolve an Issue before writing.
     const result = yield* client
       .IssueNodeId({ owner, name, number })
-      .pipe(graphql(input.host, operation));
+      .pipe(graphql(input.host, operation, input.scope));
     const found = result.repository?.issue;
     if (found == null) return yield* notFound(operation);
     return { ...target, id: found.id, state: found.state, stateReason: found.stateReason };
@@ -220,7 +223,7 @@ export const make = Effect.gen(function* () {
               cursor: input.cursor,
               rows: Math.min(Math.max(Math.trunc(input.limit), 1), 100),
             })
-            .pipe(graphql(input.host, "listIssues"), Effect.map(toIssueSearch)),
+            .pipe(graphql(input.host, "listIssues", input.scope), Effect.map(toIssueSearch)),
         ),
       ),
 
@@ -228,7 +231,7 @@ export const make = Effect.gen(function* () {
       const { owner, name, number } = yield* issue(input, "getIssue");
       const result = yield* client
         .IssueDetail({ owner, name, number })
-        .pipe(graphql(input.host, "getIssue"));
+        .pipe(graphql(input.host, "getIssue", input.scope));
       const repository = result.repository;
       const raw = repository?.issue;
       if (repository == null || raw == null) return yield* notFound("getIssue");
@@ -278,7 +281,7 @@ export const make = Effect.gen(function* () {
             withAssignees: assigneesCursor !== null,
             withClosingPullRequests: closingPullRequestsCursor !== null,
           })
-          .pipe(graphql(input.host, "getIssue"));
+          .pipe(graphql(input.host, "getIssue", input.scope));
         const next = page.repository?.issue;
         if (next == null) return yield* notFound("getIssue");
         if (labelsCursor !== null) {
@@ -342,7 +345,7 @@ export const make = Effect.gen(function* () {
         Effect.flatMap(({ owner, name, number }) =>
           client
             .IssueComments({ owner, name, number, cursor: input.cursor })
-            .pipe(graphql(input.host, "getComments")),
+            .pipe(graphql(input.host, "getComments", input.scope)),
         ),
         Effect.flatMap((result) =>
           result.repository?.issue == null
@@ -358,6 +361,7 @@ export const make = Effect.gen(function* () {
             .rest({
               host: input.host,
               operation: "create",
+              repository: input.scope,
               method: "POST",
               path: `repos/${owner}/${name}/issues`,
               body: {
@@ -396,6 +400,7 @@ export const make = Effect.gen(function* () {
             .rest({
               host: input.host,
               operation: "comment",
+              repository: input.scope,
               method: "POST",
               path: `${path}/comments`,
               body: { body: input.body },
@@ -410,6 +415,7 @@ export const make = Effect.gen(function* () {
         .rest({
           host: input.host,
           operation: "update",
+          repository: input.scope,
           method: "PATCH",
           path,
           body: {
@@ -452,6 +458,7 @@ export const make = Effect.gen(function* () {
         .rest({
           host: input.host,
           operation: "setState",
+          repository: input.scope,
           method: "PATCH",
           path,
           body: {
@@ -472,7 +479,7 @@ export const make = Effect.gen(function* () {
         // Node ids are global: prove the comment belongs to this issue before writing.
         const result = yield* client
           .IssueCommentScope({ owner, name, number, commentId: input.subjectId })
-          .pipe(graphql(input.host, "setReaction"));
+          .pipe(graphql(input.host, "setReaction", input.scope));
         const expected = result.repository?.issue?.id;
         if (
           expected === undefined ||
@@ -491,13 +498,15 @@ export const make = Effect.gen(function* () {
         input.reacted
           ? client.AddReaction(variables).pipe(Effect.asVoid)
           : client.RemoveReaction(variables).pipe(Effect.asVoid)
-      ).pipe(graphql(input.host, "setReaction"));
+      ).pipe(graphql(input.host, "setReaction", input.scope));
     }),
 
     listTemplates: (input) =>
       repository(input.scope, "listTemplates").pipe(
         Effect.flatMap(({ owner, name }) =>
-          client.IssueTemplates({ owner, name }).pipe(graphql(input.host, "listTemplates")),
+          client
+            .IssueTemplates({ owner, name })
+            .pipe(graphql(input.host, "listTemplates", input.scope)),
         ),
         Effect.flatMap(({ repository }) =>
           repository === null
@@ -509,7 +518,9 @@ export const make = Effect.gen(function* () {
     listCandidates: (input) =>
       repository(input.scope, "listCandidates").pipe(
         Effect.flatMap(({ owner, name }) =>
-          client.IssueCandidates({ owner, name }).pipe(graphql(input.host, "listCandidates")),
+          client
+            .IssueCandidates({ owner, name })
+            .pipe(graphql(input.host, "listCandidates", input.scope)),
         ),
         Effect.flatMap(({ repository }) =>
           repository === null

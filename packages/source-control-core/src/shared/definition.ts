@@ -234,6 +234,10 @@ export const SourceControlHostName = TrimmedNonEmptyString.pipe(
 
 export const HostAccountChoice = Schema.Struct({
   account: Schema.optionalKey(TrimmedNonEmptyString),
+  /** `owner/name` → account, for a repository a different `gh` login than the host pick reaches. */
+  repositoryAccounts: Schema.optionalKey(
+    Schema.Record(TrimmedNonEmptyString, TrimmedNonEmptyString),
+  ),
   enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
 });
 export type HostAccountChoice = typeof HostAccountChoice.Type;

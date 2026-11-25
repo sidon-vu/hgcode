@@ -664,6 +664,7 @@ export const make = Effect.gen(function* () {
       const response = yield* rest({
         host: locator.host,
         operation: "listPullRequestsByHead",
+        repository: `${locator.owner}/${locator.name}`,
         allowReserve: input.allowReserve,
         path: `repos/${encodeURIComponent(locator.owner)}/${encodeURIComponent(locator.name)}/pulls?${query}`,
       });
@@ -1115,6 +1116,7 @@ export const make = Effect.gen(function* () {
         yield* rest({
           host: locator.host,
           operation: "createPullRequest",
+          repository: `${locator.owner}/${locator.name}`,
           method: "POST",
           allowReserve: true,
           path: `repos/${encodeURIComponent(locator.owner)}/${encodeURIComponent(locator.name)}/pulls`,
