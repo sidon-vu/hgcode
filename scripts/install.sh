@@ -267,7 +267,7 @@ else
   trap - EXIT
 fi
 
-step "Setting up the t3 command..."
+step "Setting up the hg command..."
 mkdir -p "$bin_dir"
 # Exec by absolute path: through a symlink, argv0 is the link, and the Cursor SDK looks for its
 # helpers beside it. t3 update and t3 install write the same script.
@@ -343,6 +343,17 @@ else
 fi
 rm -f "$launcher_tmp"
 trap - EXIT
+# hg and hgcode run the same launcher under the fork's own names. A foreign file is never
+# replaced (Mercurial's hg, a user's own script); repointing t3 keeps these valid.
+for alias in hg hgcode; do
+  alias_path="${bin_dir}/${alias}"
+  if [ -L "$alias_path" ]; then
+    [ "$(readlink "$alias_path" 2>/dev/null)" = "t3" ] || continue
+  elif [ -e "$alias_path" ]; then
+    continue
+  fi
+  ln -s t3 "$alias_path" 2>/dev/null || true
+done
 # Pruning keeps what this launcher points at; a background service cannot see bin_dir otherwise.
 launcher="$(CDPATH='' cd -P -- "$bin_dir" && pwd)/t3"
 launchers="${t3_home}/runtime/launchers"
@@ -389,7 +400,7 @@ if [ -n "$first_t3" ]; then
   printf '  Another t3 at %s runs first, so run %s%s/t3%s to use this one.\n\n' "$first_t3" "$bold" "$bin_dir" "$reset"
 else
   case ":${PATH}:" in
-    *":${bin_dir}:"* | *":${bin_dir}/:"*) printf '  Run %st3%s to use HGCode here, or %st3 up%s to use it from your other devices.\n\n' "$bold" "$reset" "$bold" "$reset" ;;
+    *":${bin_dir}:"* | *":${bin_dir}/:"*) printf '  Run %shg%s to use HGCode here, or %shg up%s to use it from your other devices.\n\n' "$bold" "$reset" "$bold" "$reset" ;;
     *)
       if [ -n "$path_command" ]; then
         printf '  %s is not on your PATH yet. Add it with:\n\n    %s\n\n  Then open a new terminal and run %st3%s.\n\n' "$bin_dir" "$path_command" "$bold" "$reset"

@@ -23,6 +23,7 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import packageJson from "../../package.json" with { type: "json" };
 import * as BootService from "../cloud/bootService.ts";
 import {
+  ensureCliAliases,
   ensurePinnedRuntimeInstalled,
   findPosixLauncher,
   launcherOwnsVersionsDir,
@@ -184,6 +185,7 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
           () => new CliUpdateError({ reason: `Could not rewrite the t3 launcher at ${shimPath}.` }),
         ),
       );
+    yield* ensureCliAliases({ launcher: shimPath });
     return Option.some(shimPath);
   }
 
@@ -200,6 +202,7 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
         new CliUpdateError({ reason: `Could not repoint the t3 launcher at ${launcher}.`, cause }),
     ),
   );
+  yield* ensureCliAliases({ launcher });
   return Option.some(launcher);
 });
 

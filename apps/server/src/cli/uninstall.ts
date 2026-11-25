@@ -13,6 +13,7 @@ import { Command, Flag, GlobalFlag, Prompt } from "effect/cli";
 
 import * as BootService from "../cloud/bootService.ts";
 import {
+  findCliAliases,
   findPosixLauncher,
   generatedWindowsShimTarget,
   isVersionExecutable,
@@ -39,6 +40,7 @@ export interface UninstallPlan {
   readonly otherHomeService: string | undefined;
   readonly versionsDir: string;
   readonly launchers: ReadonlyArray<string>;
+  readonly aliases: ReadonlyArray<string>;
   readonly runtimeDir: string | undefined;
   readonly userdataDir: string;
 }
@@ -158,16 +160,24 @@ const planUninstall = Effect.fn("cli.uninstall.plan")(function* (input: {
   const runtimeDir = path.dirname(versionsDir);
   const launchedAs = (yield* HostProcess.IsExecutable) ? yield* resolveLauncherPath : undefined;
   const launchedFrom = yield* findOwnedLauncher({ launchedAs, versionsDir });
+  const launchers = [
+    ...new Set([
+      ...(launchedFrom === undefined ? [] : [launchedFrom]),
+      ...(yield* findRecordedLaunchers(versionsDir)),
+    ]),
+  ];
+  // hg/hgcode aliases die with their launcher; only ones this CLI made are listed.
+  const aliases = [
+    ...new Set(
+      (yield* Effect.forEach(launchers, (launcher) => findCliAliases({ launcher }))).flat(),
+    ),
+  ];
   const plan: UninstallPlan = {
     service: servesThisHome,
     otherHomeService: servesThisHome ? undefined : installedBaseDir,
     versionsDir,
-    launchers: [
-      ...new Set([
-        ...(launchedFrom === undefined ? [] : [launchedFrom]),
-        ...(yield* findRecordedLaunchers(versionsDir)),
-      ]),
-    ],
+    launchers,
+    aliases,
     runtimeDir: (yield* fs.exists(runtimeDir).pipe(Effect.orElseSucceed(() => false)))
       ? runtimeDir
       : undefined,
@@ -217,7 +227,12 @@ const runUninstall = Effect.fn("cli.uninstall.run")(function* (input: {
   const service = yield* BootService.BootService;
   const plan = yield* planUninstall({ baseDir: input.baseDir });
 
-  if (!plan.service && plan.launchers.length === 0 && plan.runtimeDir === undefined) {
+  if (
+    !plan.service &&
+    plan.launchers.length === 0 &&
+    plan.aliases.length === 0 &&
+    plan.runtimeDir === undefined
+  ) {
     yield* Console.log(`Nothing to remove: t3 is not installed for ${input.baseDir}.`);
     if (!(yield* HostProcess.IsExecutable)) {
       yield* Console.log(
@@ -231,6 +246,7 @@ const runUninstall = Effect.fn("cli.uninstall.run")(function* (input: {
   yield* Console.log("This will remove:");
   if (plan.service) yield* Console.log("  the background service (stopping it first)");
   for (const launcher of plan.launchers) yield* Console.log(`  the launcher at ${launcher}`);
+  for (const alias of plan.aliases) yield* Console.log(`  the launcher at ${alias}`);
   if (plan.runtimeDir !== undefined) {
     yield* Console.log(`  every downloaded version under ${plan.runtimeDir}`);
   }
@@ -257,6 +273,17 @@ const runUninstall = Effect.fn("cli.uninstall.run")(function* (input: {
   if (plan.service) {
     yield* service.uninstall;
     yield* Console.log("Removed the background service.");
+  }
+  // Aliases go first: after their launcher is gone a leftover resolves to nothing this owns.
+  for (const alias of plan.aliases) {
+    yield* fs
+      .remove(alias, { force: true })
+      .pipe(
+        Effect.mapError(
+          () => new CliUninstallError({ reason: `Could not remove the launcher at ${alias}.` }),
+        ),
+      );
+    yield* Console.log(`Removed ${alias}.`);
   }
   for (const launcher of plan.launchers) {
     // The prompt can wait a long time; never delete a file that replaced the launcher meanwhile.

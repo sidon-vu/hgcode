@@ -670,6 +670,17 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
     yield* fs.chmod(executablePath, 0o755);
   }
 
+  // HGCode fork: ship `hgcode`/`hg` aliases beside `t3` — symlinks on unix (tar keeps them,
+  // --hard-dereference only follows hardlinks), .cmd shims in the Windows zip.
+  if (input.platform === "win") {
+    const shim = '@echo off\r\n"%~dp0t3.exe" %*\r\n';
+    yield* fs.writeFileString(path.join(contentDir, "hgcode.cmd"), shim);
+    yield* fs.writeFileString(path.join(contentDir, "hg.cmd"), shim);
+  } else {
+    yield* fs.symlink("t3", path.join(contentDir, "hgcode"));
+    yield* fs.symlink("t3", path.join(contentDir, "hg"));
+  }
+
   yield* fs.makeDirectory(input.outputDir, { recursive: true });
   const archivePath = path.join(
     input.outputDir,

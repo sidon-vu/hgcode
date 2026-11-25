@@ -13,6 +13,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import packageJson from "../../package.json" with { type: "json" };
 import {
+  ensureCliAliases,
   generatedWindowsShimTarget,
   isVersionExecutable,
   readPosixLauncherTarget,
@@ -125,6 +126,7 @@ export const installCli = Effect.fn("cli.install.install")(function* () {
       Effect.mapError(failed(`Could not write ${link}.`)),
     );
   }
+  yield* ensureCliAliases({ launcher: link });
 
   // Pruning keeps what recorded launchers point at; a background service cannot see binDir otherwise.
   const recorded = path.join(

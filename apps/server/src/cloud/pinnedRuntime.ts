@@ -683,6 +683,72 @@ export const writePosixLauncher = Effect.fn("cloud.pinned_runtime.write_posix_la
   Effect.scoped,
 );
 
+/** `hg` and `hgcode` run the `t3` launcher under the fork's own names, from the same folder. */
+const CLI_ALIAS_NAMES = ["hg", "hgcode"] as const;
+
+/** A `.cmd` alias calls the sibling launcher, so repointing `t3.cmd` keeps it valid. */
+const windowsAliasShim = (launcherName: string) => `@echo off\r\n"%~dp0${launcherName}" %*\r\n`;
+
+/** Alias files next to `launcher` that this CLI created — never a foreign `hg` (e.g. Mercurial). */
+export const findCliAliases = Effect.fn("cloud.pinned_runtime.find_cli_aliases")(function* (input: {
+  readonly launcher: string;
+}) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const dir = path.dirname(input.launcher);
+  const launcherName = path.basename(input.launcher);
+  const windows = launcherName.endsWith(".cmd");
+  const found: Array<string> = [];
+  for (const alias of CLI_ALIAS_NAMES) {
+    const aliasPath = path.join(dir, windows ? `${alias}.cmd` : alias);
+    if (windows) {
+      const existing = yield* fs.readFileString(aliasPath).pipe(Effect.option);
+      if (Option.isSome(existing) && existing.value === windowsAliasShim(launcherName)) {
+        found.push(aliasPath);
+      }
+    } else {
+      const linked = yield* fs.readLink(aliasPath).pipe(Effect.option);
+      if (Option.isSome(linked) && linked.value === launcherName) found.push(aliasPath);
+    }
+  }
+  return found;
+});
+
+/**
+ * Puts the `hg`/`hgcode` aliases next to a `t3` launcher, skipping anything not ours. Aliases
+ * resolve through the launcher, so repointing it keeps them valid — they never need a repoint.
+ */
+export const ensureCliAliases = Effect.fn("cloud.pinned_runtime.ensure_cli_aliases")(
+  function* (input: { readonly launcher: string }) {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const dir = path.dirname(input.launcher);
+    const launcherName = path.basename(input.launcher);
+    const windows = launcherName.endsWith(".cmd");
+    const owned = new Set(yield* findCliAliases({ launcher: input.launcher }));
+    for (const alias of CLI_ALIAS_NAMES) {
+      const aliasPath = path.join(dir, windows ? `${alias}.cmd` : alias);
+      if (windows) {
+        // A foreign file stays untouched; an empty spot or our own shim is (re)written.
+        if (
+          owned.has(aliasPath) ||
+          !(yield* fs.exists(aliasPath).pipe(Effect.orElseSucceed(() => true)))
+        ) {
+          yield* fs.writeFileString(aliasPath, windowsAliasShim(launcherName)).pipe(Effect.ignore);
+        }
+        continue;
+      }
+      const linked = yield* fs.readLink(aliasPath).pipe(Effect.option);
+      if (Option.isSome(linked)) {
+        if (linked.value !== launcherName) continue;
+      } else if (yield* fs.exists(aliasPath).pipe(Effect.orElseSucceed(() => true))) {
+        continue;
+      }
+      yield* fs.symlink(launcherName, aliasPath).pipe(Effect.ignore);
+    }
+  },
+);
+
 /** Where the `t3` launchers written by the install scripts and `t3 update` point. */
 const shellLauncherTargets = Effect.fn("cloud.pinned_runtime.shell_launcher_targets")(function* (
   baseDir: string,

@@ -18,6 +18,8 @@ import * as HostProcess from "@t3tools/shared/HostProcess";
 
 import * as ProcessRunner from "../processRunner.ts";
 import {
+  ensureCliAliases,
+  findCliAliases,
   isVersionExecutable,
   ensurePinnedRuntimeInstalled,
   isUnpublishedRelease,
@@ -943,5 +945,58 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
         );
         assert.deepEqual(removed, ["1.1.0"]);
       }),
+  );
+});
+
+it.layer(NodeServices.layer)("cli aliases", (it) => {
+  it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
+    "creates hg and hgcode links beside the launcher and leaves a foreign hg alone",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const dir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-alias-" });
+        const launcher = path.join(dir, "t3");
+        yield* fs.writeFileString(launcher, "#!/bin/sh\n");
+
+        yield* ensureCliAliases({ launcher });
+        assert.deepEqual(yield* findCliAliases({ launcher }).pipe(Effect.map((as) => as.sort())), [
+          path.join(dir, "hg"),
+          path.join(dir, "hgcode"),
+        ]);
+        assert.equal(yield* fs.readLink(path.join(dir, "hg")), "t3");
+        assert.equal(yield* fs.readLink(path.join(dir, "hgcode")), "t3");
+
+        // A real file (e.g. Mercurial) is not ours: kept, and never listed.
+        yield* fs.remove(path.join(dir, "hg"));
+        yield* fs.writeFileString(path.join(dir, "hg"), "#!/bin/sh\nexec hg.real\n");
+        yield* ensureCliAliases({ launcher });
+        assert.equal(yield* fs.readFileString(path.join(dir, "hg")), "#!/bin/sh\nexec hg.real\n");
+        assert.deepEqual(yield* findCliAliases({ launcher }), [path.join(dir, "hgcode")]);
+      }),
+  );
+
+  it.effect("writes .cmd aliases that call the sibling launcher, never a foreign file", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const dir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-alias-cmd-" });
+      const launcher = path.join(dir, "t3.cmd");
+      yield* fs.writeFileString(launcher, '@echo off\r\n"C:\t3\t3.exe" %*\r\n');
+
+      yield* ensureCliAliases({ launcher });
+      const shim = '@echo off\r\n"%~dp0t3.cmd" %*\r\n';
+      assert.equal(yield* fs.readFileString(path.join(dir, "hg.cmd")), shim);
+      assert.equal(yield* fs.readFileString(path.join(dir, "hgcode.cmd")), shim);
+      assert.deepEqual(yield* findCliAliases({ launcher }).pipe(Effect.map((as) => as.sort())), [
+        path.join(dir, "hg.cmd"),
+        path.join(dir, "hgcode.cmd"),
+      ]);
+
+      yield* fs.writeFileString(path.join(dir, "hg.cmd"), "@echo off\r\nrem mine\r\n");
+      yield* ensureCliAliases({ launcher });
+      assert.equal(yield* fs.readFileString(path.join(dir, "hg.cmd")), "@echo off\r\nrem mine\r\n");
+      assert.deepEqual(yield* findCliAliases({ launcher }), [path.join(dir, "hgcode.cmd")]);
+    }),
   );
 });
