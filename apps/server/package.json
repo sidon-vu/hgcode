@@ -1,6 +1,6 @@
 {
   "name": "t3",
-  "version": "0.1.11",
+  "version": "1.0.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,6 +8,8 @@
     "directory": "apps/server"
   },
   "bin": {
+    "hg": "./dist/bin.mjs",
+    "hgcode": "./dist/bin.mjs",
     "t3": "./dist/bin.mjs"
   },
   "files": [
