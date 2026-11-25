@@ -1,0 +1,237 @@
+name: Release CLI
+
+# Fork-owned lean pipeline: builds only the self-contained CLI archives that
+# `t3 update` / in-app env updates download (t3-<ver>-<platform>-<arch>.tar.gz
+# + SHA256SUMS). Upstream's release.yml additionally ships desktop/mobile and
+# publishes to upstream infra (Vercel/AUR/Discord/Play), which needs secrets
+# this fork does not have — this file covers only what envs consume.
+#
+# Run it: push a tag `v<version>`, or Actions → Release CLI → Run workflow
+# with a version input.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (for example 0.1.12). Required for manual runs."
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-cli-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          sparse-checkout: apps/server/package.json
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve release version
+        id: version
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          if [[ -z "$version" && "${{ github.ref_type }}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          if [[ -z "$version" ]]; then
+            version="$(jq -r .version apps/server/package.json)"
+          fi
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Refusing to release version '$version'." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing t3@${version} from ${GITHUB_REF_NAME}"
+
+  bundle:
+    name: Build JS bundle
+    needs: [resolve]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      # Public config baked into the web client. Overridable through repo vars;
+      # defaults are this fork's production relay/Clerk deployment.
+      T3CODE_CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsuaGFnaWh1Yi50ZWNoJA' }}
+      T3CODE_CLERK_JWT_TEMPLATE: ${{ vars.CLERK_JWT_TEMPLATE || 't3-relay' }}
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: ${{ vars.CLERK_CLI_OAUTH_CLIENT_ID || 'OSOv5q3eYWP5jCxy' }}
+      T3CODE_RELAY_URL: ${{ vars.RELAY_URL || 'https://relay.hagihub.tech' }}
+      T3CODE_TELEMETRY_CHANNEL: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+        with:
+          install-args: --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+
+      - name: Align package versions to release version
+        run: node scripts/update-release-package-versions.ts "${{ needs.resolve.outputs.version }}"
+
+      # apps/server/dist holds the server bundle plus the web client.
+      - name: Build bundle
+        run: vp run --filter @t3tools/desktop build:bundle
+
+      - name: Upload JS bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: js-bundle
+          path: apps/server/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  cli:
+    name: CLI archive ${{ matrix.name }}
+    needs: [resolve, bundle]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            rust_target: x86_64-unknown-linux-gnu
+            resource_key: linux-x64
+          - name: Linux arm64
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            rust_target: aarch64-unknown-linux-gnu
+            resource_key: linux-arm64
+          - name: macOS arm64
+            runner: macos-latest
+            platform: mac
+            arch: arm64
+            rust_target: aarch64-apple-darwin
+            resource_key: darwin-arm64
+    env:
+      T3CODE_TELEMETRY_CHANNEL: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.rust_target }}
+
+      - name: Align package versions to release version
+        run: node scripts/update-release-package-versions.ts "${{ needs.resolve.outputs.version }}"
+
+      - name: Download JS bundle
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: js-bundle
+          path: apps/server/dist
+
+      - name: Build resource monitor
+        run: cargo build --locked --release --manifest-path native/resource-monitor/Cargo.toml --target "${{ matrix.rust_target }}"
+
+      - name: Build CLI single-executable
+        run: node apps/server/scripts/cli.ts build-exe --verbose
+
+      - name: Apply web client branding
+        run: node scripts/apply-web-brand-assets.ts production apps/server/dist/client
+
+      - name: Stage resource monitor for the CLI archive
+        run: |
+          set -euo pipefail
+          target_dir="$RUNNER_TEMP/cli-resource-monitor/${{ matrix.resource_key }}"
+          mkdir -p "$target_dir"
+          cp "native/resource-monitor/target/${{ matrix.rust_target }}/release/t3-resource-monitor" "$target_dir/t3-resource-monitor"
+
+      - uses: ./.github/actions/setup-apt-mirrors
+        if: matrix.platform == 'linux'
+
+      # The Linux archive ships libatomic.so.1 and points t3's RUNPATH at it.
+      - name: Install patchelf and libatomic
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y patchelf libatomic1
+
+      - name: Build CLI archive
+        run: |
+          node scripts/build-cli-archive.ts \
+            --platform "${{ matrix.platform }}" \
+            --arch "${{ matrix.arch }}" \
+            --version "${{ needs.resolve.outputs.version }}" \
+            --resource-monitor-dir "$RUNNER_TEMP/cli-resource-monitor" \
+            --output-dir release-cli
+
+      - name: Smoke-test CLI archive
+        run: node scripts/smoke-cli-archive.ts --archive release-cli/* --expect-version "${{ needs.resolve.outputs.version }}"
+
+      - name: Upload CLI archive
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cli-${{ matrix.resource_key }}
+          path: release-cli/*
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    name: Publish GitHub Release
+    needs: [resolve, cli]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v${{ needs.resolve.outputs.version }}
+    steps:
+      - name: Download all CLI archives
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: cli-*
+          merge-multiple: true
+          path: release-assets
+
+      # Installers verify archives against this file, so it is written from the
+      # signed bytes that get uploaded, never from an earlier stage.
+      - name: Write CLI archive checksums
+        run: |
+          set -euo pipefail
+          cd release-assets
+          shopt -s nullglob
+          archives=(t3-*.tar.gz t3-*.zip)
+          if [[ ${#archives[@]} -eq 0 ]]; then
+            echo "No CLI archives were produced." >&2
+            exit 1
+          fi
+          sha256sum "${archives[@]}" > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Create release and upload assets
+        run: |
+          set -euo pipefail
+          prerelease=()
+          if [[ "${{ needs.resolve.outputs.version }}" == *-* ]]; then
+            prerelease=(--prerelease --latest=false)
+          else
+            prerelease=(--latest)
+          fi
+          gh release create "$RELEASE_TAG" \
+            --title "HGCode $RELEASE_TAG" \
+            --generate-notes \
+            "${prerelease[@]}" \
+            release-assets/t3-* release-assets/SHA256SUMS
