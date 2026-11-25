@@ -1240,4 +1240,4 @@ export declare namespace SetIssueStatus {
 }
 
 /** Every operation in issues.graphql. */
-export const IssuesGraphQLGroup = GraphQLGroup.make(IssueSearch, IssueDetail, IssueComments, IssueLinkMetadata, IssueNodeId, IssueCommentScope, IssueCandidates, IssueTemplates, IssueViewer, IssueCollections, IssueSearchWithStatus, IssueStatuses, SetIssueStatus)
+export const IssuesGraphQLGroup = GraphQLGroup.make(IssueSearch, IssueDetail, IssueComments, IssueNodeId, IssueCommentScope, IssueCandidates, IssueTemplates, IssueViewer, IssueCollections, IssueSearchWithStatus, IssueStatuses, SetIssueStatus)
